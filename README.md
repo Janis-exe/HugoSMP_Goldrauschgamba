@@ -30,8 +30,9 @@ Am Ende zoomt die Kamera heran und der Gewinn wird groß enthüllt
 (Seltenheit, Name und Betrag, bei Episch/Legendär mit Konfetti). Auch die Wartezeiten der Spannungspausen sind
 zufällig, so weiß man nie genau, wann es so weit ist.
 
-**Star-Tools und Spawner mit eigenem Bild:** Steht in der Server-Nachricht z. B. „Star-Axt“ oder „Kuh-Spawner“, zeigt
-die Enthüllung genau dieses Bild und den Namen. In den Animationen tauchen die Varianten auch als Köder auf.
+**Star-Tools und Spawner mit eigenem Bild:** Steht in der Server-Nachricht oder auf dem Drop-Schild z. B. „Star-Axt“,
+„Kuh-Spawner“ oder „Spider Spawner“, zeigt die Enthüllung genau dieses Bild und den Namen. In den Animationen tauchen
+die Varianten auch als Köder auf.
 
 ### Die Animationen in Bewegung
 
