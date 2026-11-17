@@ -1,6 +1,6 @@
 package de.schiessbude.mixin;
 
-import de.schiessbude.trigger.MoneyDrops;
+import de.schiessbude.trigger.Drops;
 import net.minecraft.network.chat.Component;
 import net.minecraft.network.syncher.EntityDataAccessor;
 import net.minecraft.world.entity.Display;
@@ -28,6 +28,6 @@ public abstract class TextDisplayMixin {
 
 	@Inject(method = "onSyncedDataUpdated", at = @At("TAIL"))
 	private void schiessbude$onTextChanged(EntityDataAccessor<?> key, CallbackInfo ci) {
-		if (DATA_TEXT_ID.equals(key)) MoneyDrops.onTextDisplay((Display.TextDisplay) (Object) this, getText());
+		if (DATA_TEXT_ID.equals(key)) Drops.onTextDisplay((Display.TextDisplay) (Object) this, getText());
 	}
 }

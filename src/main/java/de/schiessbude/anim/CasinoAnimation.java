@@ -7,7 +7,7 @@ import de.schiessbude.config.PrizeVariant;
 import de.schiessbude.config.Rarity;
 import de.schiessbude.config.Reward;
 import de.schiessbude.config.ServerSound;
-import de.schiessbude.trigger.MoneyDrops;
+import de.schiessbude.trigger.Drops;
 import net.minecraft.client.gui.GuiGraphicsExtractor;
 import net.minecraft.core.Holder;
 import net.minecraft.resources.Identifier;
@@ -192,7 +192,7 @@ public abstract class CasinoAnimation {
 				float at = tReveal + Math.min(s.delay(), 2f);
 				if (t < at) break;
 				nextServerSound++;
-				if (t - at < 0.5f) MoneyDrops.replay(s);
+				if (t - at < 0.5f) Drops.replay(s);
 			}
 		}
 	}

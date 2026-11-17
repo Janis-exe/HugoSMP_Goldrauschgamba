@@ -61,8 +61,8 @@ schickt sie ins Internet. **Diese Mod kann das nachweislich nicht.** Das wird be
 * **Kein Internet:** Die Mod benutzt keinerlei Netzwerk-Funktionen (`java.net` & Co. sind verboten).
 * **Nichts an den Server:** Die Mod kann keine Pakete senden, sie empfängt nur.
 * **Kein Account-Zugriff:** Kein Zugriff auf Session, Token, Profil oder Anmeldedaten.
-* **Keine Dateien außer der eigenen Konfiguration:** Nur `config/schiessbude.json` und (falls eingeschaltet)
-  `config/schiessbude/pakete.log`. Der Server hat keinen Einfluss auf Pfade oder Dateinamen.
+* **Keine Dateien außer der eigenen Konfiguration:** Nur `config/schiessbude.json`, das Fund-Protokoll
+  `config/schiessbude/funde.log` und (falls eingeschaltet) `config/schiessbude/pakete.log`. Der Server hat keinen Einfluss auf Pfade oder Dateinamen.
 * **Kein fremder Code:** Kein Nachladen von Code, keine Reflection, keine Programme starten, keine nativen
   Bibliotheken, keine versteckten .jar-Dateien in der Mod.
 * **Server-Daten werden nur angezeigt:** Text vom Server (Chat, Titel, Geld-Drop-Schilder, das Paket `schiessbude:reward`) wird gekürzt
@@ -84,17 +84,17 @@ Die meisten RATs stecken in **gefälschten Kopien** bekannter Mods. Lade die Mod
 
 1. **Prüfsumme vergleichen:** Im [Actions](../../actions/workflows/build.yml)-Durchlauf steht in der Zusammenfassung
    die SHA-256 der echten .jar (auch in `SHA256SUMS.txt` im Download). Deine Datei prüfen:
-   * Windows (PowerShell): `Get-FileHash goldrausch-schiessbude-1.5.0.jar`
-   * Linux/macOS: `sha256sum goldrausch-schiessbude-1.5.0.jar`
+   * Windows (PowerShell): `Get-FileHash goldrausch-schiessbude-1.6.0.jar`
+   * Linux/macOS: `sha256sum goldrausch-schiessbude-1.6.0.jar`
 
    Stimmt die Zahl nicht exakt überein: **nicht benutzen.**
 2. **Herkunftsnachweis (mit GitHub CLI):**
-   `gh attestation verify goldrausch-schiessbude-1.5.0.jar --repo Janis-exe/hugosmp_goldrauschgamba`
+   `gh attestation verify goldrausch-schiessbude-1.6.0.jar --repo Janis-exe/hugosmp_goldrauschgamba`
    bestätigt, dass die Datei von GitHub aus genau diesem Repository gebaut wurde.
-3. **Inhalt prüfen (mit JDK 25):** `java tools/SicherheitsCheck.java goldrausch-schiessbude-1.5.0.jar`
+3. **Inhalt prüfen (mit JDK 25):** `java tools/SicherheitsCheck.java goldrausch-schiessbude-1.6.0.jar`
 4. **Selbst bauen:** Der Build ist reproduzierbar. `./gradlew build` ergibt aus diesem Code Byte für Byte dieselbe
-   .jar mit derselben SHA-256 wie bei GitHub. Version 1.5.0:
-   `76da251089ecd42f88b908f4cd57c71b47db13742ce2d46995b4f323cecdc80e`
+   .jar mit derselben SHA-256 wie bei GitHub. Version 1.6.0:
+   `d9169d4e4bcde73abf020b850e3e8d7c9f3acda0ff6b3fcaba60e96578497178`
 
 Hinweis: Das schützt vor einem RAT **über diese Mod**. Andere Mods, Programme oder Downloads prüft es nicht.
 
@@ -102,7 +102,7 @@ Hinweis: Das schützt vor einem RAT **über diese Mod**. Andere Mods, Programme 
 
 1. [Fabric Loader](https://fabricmc.net/use/) **0.19.3+** für Minecraft **26.3** installieren.
 2. **Fabric API** für 26.3 (**0.161.0** oder neuer) in den `mods`-Ordner legen.
-3. `goldrausch-schiessbude-1.5.0.jar` in den `mods`-Ordner legen (eine ältere Version vorher löschen).
+3. `goldrausch-schiessbude-1.6.0.jar` in den `mods`-Ordner legen (eine ältere Version vorher löschen).
 4. Optional: **Mod Menu** (21.0.1+). Dann gibt es dort den Knopf „Konfigurieren“.
 
 ## Bedienung
@@ -145,33 +145,49 @@ der Wert ist `SHOOTING_RANGE`, `SLOT_MACHINE`, `ROULETTE` oder `RANDOM`.
 
 ## Wie wird ein Fund erkannt?
 
-### Geld-Drops (schwebendes goldenes Schild)
-Beim Abbauen erscheint auf HugiSMP manchmal über dem Block ein goldenes Schild mit einem Betrag, z. B. `+66,000 $`.
-Der Server schickt dazu **keinen** Chat- oder Titel-Text, sondern baut das Schild aus zwei schwebenden Anzeigen
-(ein Goldnugget als `item_display` und darunter der Betrag als `text_display`). Der Text besteht aus vielen
-Sonderzeichen einer eigenen Server-Schrift (der goldene Hintergrund) und dem lesbaren Betrag.
+### Fund-Protokoll: warum lief (oder lief keine) Animation?
+Die Mod schreibt **immer** mit, warum eine Animation gestartet wurde und welche Drops an deinem Block auftauchten:
+`config/schiessbude/funde.log` im Ordner deiner Instanz (bei NoRisk z. B.
+`D:\profiles\<Instanz>\config\schiessbude\funde.log`, max. 2 × 1 MB). Beispiele:
 
-Die Mod liest den Text jedes solchen Schilds, entfernt die Hintergrund-Zeichen und sucht nach `+Betrag $`
-(auch `+1.2M $`, `+1,2 Mio $` oder `+$66,000`). Gefunden wird der Betrag nur, wenn
+```
+[2026-11-17 19:23:20.005] DROP-ITEM am abgebauten Block: minecraft:gold_nugget "Gold Nugget"
+[2026-11-17 19:23:20.005] DROP-TEXT am abgebauten Block: +66,000 $
+[2026-11-17 19:23:20.006] ANIMATION Goldnugget (+66,000 $) aus Drop: Text '+66,000 $'
+[2026-11-17 19:22:31.572] IGNORIERT Drop-Text 'Kuh-Spawner x5': nicht an einem Block, den du gerade abgebaut hast (Hologramm?)
+[2026-11-17 19:22:35.149] IGNORIERT Spielerchat: [F2w] PREMIUM Name: hab grad nen Spawner bekommen
+```
 
-* das Schild höchstens **8 Blöcke** von dir entfernt ist (`moneyDropMaxDistance`), und
-* du in den letzten **5 Sekunden selbst einen Block abgebaut** hast (`moneyDropNeedsMining`).
+Kommt eine Animation, die nicht sein sollte, oder fehlt eine: Die passenden Zeilen aus `funde.log` zeigen sofort,
+woher sie kam bzw. was der Server geschickt hat.
 
-So lösen Geld-Drops anderer Spieler nichts aus. Jedes Schild zählt nur einmal. Der Betrag bestimmt den Gewinn:
-der Geld-Gewinn mit dem kleinsten passenden Höchstbetrag (`testMoneyMax`), also **bis 75.000 $ Goldnugget,
-darüber Goldbarren**. Der Betrag erscheint bei der Enthüllung, so wie ihn der Server schreibt. Welche Animation läuft,
-stellst du im Menü unter **Server-Fund** ein. Abschalten: `triggerMoneyDrops` auf `false`.
+### Drops beim Abbauen (Geld, Star-Tools, Spawner ...)
+Auf HugiSMP erscheint ein Fund beim Abbauen **nicht im Chat**, sondern als schwebende Anzeige direkt über dem Block:
+ein Item (`item_display`, z. B. Goldnugget) und darunter ein Schild (`text_display`, z. B. `+66,000 $`). Der Text
+besteht aus vielen Sonderzeichen einer eigenen Server-Schrift (der goldene Hintergrund) und dem lesbaren Teil.
 
-**Sounds des Servers:** Beim Drop spielt der Server eigene Sounds ab, sobald das Nugget erscheint (noch vor dem
-Betrag), und einen am Ende. Damit sie nichts verraten, hält die Mod genau diese Sounds an und spielt sie erst bei der
+Eine solche Anzeige zählt nur, wenn sie
+
+* **direkt an einem Block auftaucht, den du in den letzten 4 Sekunden abgebaut oder angeschlagen hast**
+  (`moneyDropNeedsMining`). Hologramme, z. B. über Spawnern, die in Sichtweite kommen, lösen so nichts aus;
+* höchstens **8 Blöcke** von dir entfernt ist (`moneyDropMaxDistance`). Drops anderer Spieler zählen nicht.
+
+Dann gilt:
+
+| Was die Anzeige zeigt | Animation |
+|---|---|
+| Betrag: `+66,000 $`, `1,250,000 $`, `+1.2M $`, `+1,2 Mio $`, `$66,000` | Geld-Gewinn nach Betrag: **bis 75.000 $ Goldnugget, darüber Goldbarren** (`testMoneyMax`), mit Betrag |
+| Name eines Gewinns oder einer Variante (Text oder Item-Name), z. B. „Kuh-Spawner“, „Star Spitzhacke“, ein Spawner-Item | dieser Gewinn mit passendem Bild |
+| nur ein Gold-Item ohne lesbaren Betrag (Goldnugget / Goldbarren) | Goldnugget bzw. Goldbarren ohne Betrag |
+
+Jeder Drop zählt nur einmal, auch wenn Item und Schild beide passen. Welche Animation läuft, stellst du im Menü unter
+**Server-Fund** ein. Abschalten: `triggerMoneyDrops` auf `false`.
+
+**Sounds des Servers:** Beim Drop spielt der Server eigene Sounds ab, sobald das Item erscheint (noch vor dem Schild),
+und einen am Ende. Damit sie nichts verraten, hält die Mod genau diese Sounds an und spielt sie erst bei der
 Enthüllung in der Animation ab, statt des eigenen Enthüllungs-Sounds. Angehalten werden nur die eigenen Sounds des
-Servers in der ersten Sekunde nach dem Nugget in deiner Nähe, keine normalen Minecraft-Sounds wie das Abbauen. Wird
-kein Schild erkannt oder läuft keine Animation, kommen die Sounds sofort nach. Abschalten: `moneyDropSoundAtReveal`.
-
-**Zum Testen:** **Pakete loggen** einschalten. Dann steht jedes Schild in deiner Nähe mit seinem lesbaren Text in
-`pakete.log`, z. B. `TEXT-DISPLAY: +66,000 $  (2.5 Blöcke entfernt)`. So sieht man auch, falls große Beträge oder
-andere Drops anders geschrieben werden. Ignorierte Drops und angehaltene Sounds stehen im Minecraft-Log
-(`latest.log`), z. B. `Geld-Drop: Server-Sound ... zurückgehalten`.
+Servers in der ersten Sekunde nach einem Drop an deinem Block, keine normalen Minecraft-Sounds wie das Abbauen. Wird
+nichts erkannt oder läuft keine Animation, kommen die Sounds sofort nach. Abschalten: `moneyDropSoundAtReveal`.
 
 ### Chat, Titel und Actionbar
 Die Mod liest außerdem die Text-Pakete, die der Client vom Server empfängt:
@@ -181,7 +197,8 @@ Die Mod liest außerdem die Text-Pakete, die der Client vom Server empfängt:
   HUD (`HudTitleMixin`), damit die Mod auch mit älterer Fabric API läuft
 
 Enthält ein Text den Namen eines Gewinns (z. B. „Goldbarren“) **und** ein Wort wie „gefunden“, startet
-die Animation. Ein Betrag wie `12.345 $` im Text wird automatisch mit angezeigt.
+die Animation. Ein Betrag wie `12.345 $` im Text wird automatisch mit angezeigt. **Spielerchat** im Format
+`[Clan] Name: Text` oder `Name: Text` löst nie aus (`ignorePlayerChat`), auch wenn darin „Spawner bekommen“ steht.
 
 ### Die genaue Server-Nachricht herausfinden
 1. Im Menü **Pakete loggen** einschalten.
@@ -194,8 +211,8 @@ die Animation. Ein Betrag wie `12.345 $` im Text wird automatisch mit angezeigt.
      wie „Kauf dir Star-Tools!“ und die Funde **anderer Spieler** nicht aus.
    * `ignorePattern`: Nachrichten, die hierauf passen, lösen nie aus.
    * `allowServerPayload`: das eigene Paket `schiessbude:reward` annehmen (`true`/`false`).
-   * `triggerMoneyDrops`, `moneyDropMaxDistance`, `moneyDropNeedsMining`, `moneyDropSoundAtReveal`: Geld-Drops
-     (siehe oben).
+   * `triggerMoneyDrops`, `moneyDropMaxDistance`, `moneyDropNeedsMining`, `moneyDropSoundAtReveal`: Drops beim
+     Abbauen (siehe oben). `ignorePlayerChat`: Spielerchat ignorieren.
    * `prizes[].pattern` / `prizes[].detailPattern`: Erkennung des Gewinns bzw. des Betrags/Typs.
 
 Alle Muster sind reguläre Ausdrücke (Java-Regex), `(?i)` = Groß-/Kleinschreibung egal.
@@ -243,7 +260,7 @@ Benötigt **JDK 25**.
 ./gradlew build
 ```
 
-Die fertige Mod liegt danach unter `build/libs/goldrausch-schiessbude-1.5.0.jar`. `build` führt dabei automatisch
+Die fertige Mod liegt danach unter `build/libs/goldrausch-schiessbude-1.6.0.jar`. `build` führt dabei automatisch
 den Sicherheits-Check aus (einzeln: `./gradlew sicherheitsCheck`).
 
 * Minecraft mit der Mod starten: `./gradlew runClient`
@@ -264,7 +281,7 @@ src/main/java/de/schiessbude/
 ├─ anim/AnimationManager.java      Warteschlange, Pausieren, Überspringen
 ├─ anim/Gfx.java, PrizeIcon.java   Zeichen-Helfer, Gewinn-Bilder
 ├─ trigger/PacketTriggers.java     Erkennung in Chat/Actionbar/Titel-Paketen + Paket-Log
-├─ trigger/MoneyDrops.java         Geld-Drops: Betrag aus dem schwebenden Schild lesen
+├─ trigger/Drops.java              Drops beim Abbauen (Schild/Item an deinem Block), Server-Sounds zurückhalten
 ├─ net/RewardPayload.java          Optionales eigenes Paket schiessbude:reward
 ├─ config/                         Konfiguration, Gewinne, Seltenheiten
 ├─ gui/SettingsScreen.java         Einstellungsmenü

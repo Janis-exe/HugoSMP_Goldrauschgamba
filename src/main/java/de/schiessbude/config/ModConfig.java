@@ -71,12 +71,14 @@ public class ModConfig {
 	public int duplicateWindowMs = 250;
 	/** Debug: jeden empfangenen Chat-/Actionbar-/Titel-Text in config/schiessbude/pakete.log schreiben. */
 	public boolean logPackets = false;
+	/** Spielerchat ("[Clan] Name: Text") löst nie aus, auch wenn darin z. B. "Spawner bekommen" steht. */
+	public boolean ignorePlayerChat = true;
 	/** Das eigene Paket "schiessbude:reward" vom Server annehmen (nur Gewinn-ID und kurzer Text). */
 	public boolean allowServerPayload = true;
 
 	// ---- Geld-Drops (schwebendes goldenes Schild "+66,000 $" beim Abbauen) ----
 	/** Geld-Drops erkennen: Text-Display mit Betrag in deiner Nähe. Der Betrag bestimmt den Gewinn (testMoneyMax). */
-	public boolean triggerMoneyDrops = true;
+	public boolean triggerDrops = true;
 	/** Nur Schilder, die höchstens so weit von dir entfernt sind (Blöcke). Drops anderer Spieler weiter weg zählen nicht. */
 	public float moneyDropMaxDistance = 8f;
 	/** Nur auslösen, wenn du in den letzten 5 Sekunden selbst einen Block abgebaut hast. */

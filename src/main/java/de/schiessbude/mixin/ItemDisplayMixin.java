@@ -1,6 +1,6 @@
 package de.schiessbude.mixin;
 
-import de.schiessbude.trigger.MoneyDrops;
+import de.schiessbude.trigger.Drops;
 import net.minecraft.network.syncher.EntityDataAccessor;
 import net.minecraft.world.entity.Display;
 import net.minecraft.world.item.ItemStack;
@@ -29,6 +29,6 @@ public abstract class ItemDisplayMixin {
 
 	@Inject(method = "onSyncedDataUpdated", at = @At("TAIL"))
 	private void schiessbude$onItemChanged(EntityDataAccessor<?> key, CallbackInfo ci) {
-		if (DATA_ITEM_STACK_ID.equals(key)) MoneyDrops.onItemDisplay((Display.ItemDisplay) (Object) this, getItemStack());
+		if (DATA_ITEM_STACK_ID.equals(key)) Drops.onItemDisplay((Display.ItemDisplay) (Object) this, getItemStack());
 	}
 }

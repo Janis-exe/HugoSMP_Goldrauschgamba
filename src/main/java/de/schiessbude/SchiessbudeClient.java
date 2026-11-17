@@ -12,7 +12,7 @@ import de.schiessbude.config.Reward;
 import de.schiessbude.gui.PreviewScreen;
 import de.schiessbude.gui.SettingsScreen;
 import de.schiessbude.net.RewardPayload;
-import de.schiessbude.trigger.MoneyDrops;
+import de.schiessbude.trigger.Drops;
 import de.schiessbude.trigger.PacketTriggers;
 import net.fabricmc.api.ClientModInitializer;
 import net.fabricmc.fabric.api.client.command.v2.ClientCommandRegistrationCallback;
@@ -26,6 +26,7 @@ import net.fabricmc.fabric.api.client.networking.v1.ClientPlayNetworking;
 import net.fabricmc.fabric.api.client.rendering.v1.hud.HudElementRegistry;
 import net.fabricmc.fabric.api.client.rendering.v1.hud.VanillaHudElements;
 import net.fabricmc.fabric.api.event.client.player.ClientPlayerBlockBreakEvents;
+import net.fabricmc.fabric.api.event.player.AttackBlockCallback;
 import net.fabricmc.fabric.api.networking.v1.PayloadTypeRegistry;
 import net.minecraft.client.KeyMapping;
 import net.minecraft.client.Minecraft;
@@ -34,6 +35,7 @@ import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.network.chat.Component;
 import net.minecraft.resources.Identifier;
 import net.minecraft.tags.BlockTags;
+import net.minecraft.world.InteractionResult;
 import net.minecraft.world.level.block.state.BlockState;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -81,18 +83,24 @@ public class SchiessbudeClient implements ClientModInitializer {
 
 		// ---- Test-Modus: jedes abgebaute Erz (Kupfer = Schießstand, Kohle = Slotmaschine, Gold/Eisen/... = Roulette) ----
 		ClientPlayerBlockBreakEvents.AFTER.register((level, player, pos, state) -> {
-			MoneyDrops.onOwnBlockBroken(); // Geld-Drops zählen nur direkt nach eigenem Abbau
+			Drops.onBlockMined(pos); // Drops zählen nur direkt an Blöcken, die du gerade abgebaut hast
 			ModConfig cfg = ModConfig.get();
 			if (!cfg.testModeOres || !isOre(state)) return;
 			String path = BuiltInRegistries.BLOCK.getKey(state.getBlock()).getPath();
 			enqueueTestReward("Test: " + path, cfg.animationForOre(path));
 		});
 
+		// Angeschlagene Blöcke zählen auch: manche Server bauen den Block selbst ab (dann gibt es kein Abbau-Ereignis)
+		AttackBlockCallback.EVENT.register((player, level, hand, pos, direction) -> {
+			if (level.isClientSide()) Drops.onBlockMined(pos);
+			return InteractionResult.PASS;
+		});
+
 		// ---- Tick: Tasten, verzögertes Öffnen ----
 		ClientTickEvents.END_CLIENT_TICK.register(this::onTick);
 		ClientPlayConnectionEvents.DISCONNECT.register((handler, client) -> {
 			AnimationManager.clear();
-			MoneyDrops.reset();
+			Drops.reset();
 		});
 
 		// ---- Befehle: /schiessbude, /schiessbude test [animation] [gewinn], /schiessbude leeren ----
@@ -123,7 +131,7 @@ public class SchiessbudeClient implements ClientModInitializer {
 	}
 
 	private void onTick(Minecraft mc) {
-		MoneyDrops.tick();
+		Drops.tick();
 		if (openSettingsNextTick && mc.gui.screen() == null) {
 			openSettingsNextTick = false;
 			mc.gui.setScreen(new SettingsScreen(null));
