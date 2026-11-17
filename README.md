@@ -1,6 +1,8 @@
 # Goldrausch Schießbude – Fabric-Mod für Minecraft 26.3
 
-**⬇ Download:** fertige Mod unter [Releases](../../releases/latest) (`goldrausch-schiessbude-1.0.0.jar`)
+**⬇ Download:** Reiter [Actions](../../actions/workflows/build.yml) → neuester grüner Durchlauf → unten bei
+**Artifacts** auf `goldrausch-schiessbude` klicken. Du bekommst eine ZIP, darin liegt die `.jar` für den `mods`-Ordner.
+Jede Änderung am Code baut automatisch eine neue Version.
 
 ![Vorschau](docs/vorschau.png)
 
