@@ -28,11 +28,53 @@ Am Ende zoomt die Kamera heran und der Gewinn wird groß enthüllt
   Unten rechts steht, wie viele noch warten.
 * Die Animation pausiert, solange ein Menü (z. B. Inventar) offen ist. So verpasst man keinen Fund.
 
+## Sicherheit: Schutz gegen „geratet werden“
+
+Ein „RAT“ (Trojaner in einer Mod) stiehlt z. B. den Minecraft-Account (Session-Token), Passwörter oder Dateien und
+schickt sie ins Internet. **Diese Mod kann das nachweislich nicht.** Das wird bei jedem Build automatisch geprüft:
+
+* **Kein Internet:** Die Mod benutzt keinerlei Netzwerk-Funktionen (`java.net` & Co. sind verboten).
+* **Nichts an den Server:** Die Mod kann keine Pakete senden, sie empfängt nur.
+* **Kein Account-Zugriff:** Kein Zugriff auf Session, Token, Profil oder Anmeldedaten.
+* **Keine Dateien außer der eigenen Konfiguration:** Nur `config/schiessbude.json` und (falls eingeschaltet)
+  `config/schiessbude/pakete.log`. Der Server hat keinen Einfluss auf Pfade oder Dateinamen.
+* **Kein fremder Code:** Kein Nachladen von Code, keine Reflection, keine Programme starten, keine nativen
+  Bibliotheken, keine versteckten .jar-Dateien in der Mod.
+* **Server-Daten werden nur angezeigt:** Text vom Server (Chat, Titel, das Paket `schiessbude:reward`) wird gekürzt
+  (max. 512 Zeichen untersucht, Paket max. 256 Byte), von Steuerzeichen befreit und nur als Text angezeigt.
+  Die Warteschlange ist auf 20 Funde begrenzt, das Paket-Log auf 2 × 1 MB.
+
+### Wie das geprüft wird
+`tools/SicherheitsCheck.java` öffnet die fertige .jar und liest **jede Klasse Byte für Byte**. Erlaubt ist nur eine
+feste Liste von Java-, Minecraft- und Fabric-Funktionen (Positivliste). Taucht irgendetwas anderes auf, z. B. Internet,
+`getUser()`, Reflection oder eine versteckte Datei, schlägt der Build fehl und es gibt keine .jar zum Herunterladen.
+Der Check wurde mit einer absichtlich präparierten Test-Mod geprüft (Token auslesen, ins Internet senden, Reflection,
+Programm starten, Dateien schreiben, Paket an den Server, versteckte .jar): alles wurde erkannt.
+
+Zusätzlich ist der Build abgesichert: alle GitHub-Aktionen sind auf feste Versionen gepinnt, die Gradle-Startdatei
+wird auf Echtheit geprüft, und jede .jar bekommt eine SHA-256-Prüfsumme und einen Herkunftsnachweis von GitHub.
+
+### So prüfst du deine .jar (wichtig, wenn du sie von jemand anderem bekommst)
+Die meisten RATs stecken in **gefälschten Kopien** bekannter Mods. Lade die Mod daher nur hier herunter, oder prüfe sie:
+
+1. **Prüfsumme vergleichen:** Im [Actions](../../actions/workflows/build.yml)-Durchlauf steht in der Zusammenfassung
+   die SHA-256 der echten .jar (auch in `SHA256SUMS.txt` im Download). Deine Datei prüfen:
+   * Windows (PowerShell): `Get-FileHash goldrausch-schiessbude-1.1.1.jar`
+   * Linux/macOS: `sha256sum goldrausch-schiessbude-1.1.1.jar`
+
+   Stimmt die Zahl nicht exakt überein: **nicht benutzen.**
+2. **Herkunftsnachweis (mit GitHub CLI):**
+   `gh attestation verify goldrausch-schiessbude-1.1.1.jar --repo Janis-exe/hugosmp_goldrauschgamba`
+   bestätigt, dass die Datei von GitHub aus genau diesem Repository gebaut wurde.
+3. **Inhalt prüfen (mit JDK 25):** `java tools/SicherheitsCheck.java goldrausch-schiessbude-1.1.1.jar`
+
+Hinweis: Das schützt vor einem RAT **über diese Mod**. Andere Mods, Programme oder Downloads prüft es nicht.
+
 ## Installation
 
 1. [Fabric Loader](https://fabricmc.net/use/) **0.20.1+** für Minecraft **26.3** installieren.
 2. **Fabric API** für 26.3 in den `mods`-Ordner legen.
-3. `goldrausch-schiessbude-1.1.0.jar` in den `mods`-Ordner legen (eine ältere Version vorher löschen).
+3. `goldrausch-schiessbude-1.1.1.jar` in den `mods`-Ordner legen (eine ältere Version vorher löschen).
 4. Optional: **Mod Menu** (21.0.1+). Dann gibt es dort den Knopf „Konfigurieren“.
 
 ## Bedienung
@@ -93,6 +135,7 @@ die Animation. Ein Betrag wie `12.345 $` im Text wird automatisch mit angezeigt.
    * `requiredPattern`: Muss in jeder Fund-Nachricht vorkommen (z. B. `Du hast`). Damit lösen Werbung
      wie „Kauf dir Star-Tools!“ und die Funde **anderer Spieler** nicht aus.
    * `ignorePattern`: Nachrichten, die hierauf passen, lösen nie aus.
+   * `allowServerPayload`: das eigene Paket `schiessbude:reward` annehmen (`true`/`false`).
    * `prizes[].pattern` / `prizes[].detailPattern`: Erkennung des Gewinns bzw. des Betrags/Typs.
 
 Alle Muster sind reguläre Ausdrücke (Java-Regex), `(?i)` = Groß-/Kleinschreibung egal.
@@ -136,12 +179,14 @@ Benötigt **JDK 25**.
 ./gradlew build
 ```
 
-Die fertige Mod liegt danach unter `build/libs/goldrausch-schiessbude-1.1.0.jar`.
+Die fertige Mod liegt danach unter `build/libs/goldrausch-schiessbude-1.1.1.jar`. `build` führt dabei automatisch
+den Sicherheits-Check aus (einzeln: `./gradlew sicherheitsCheck`).
 
 * Minecraft mit der Mod starten: `./gradlew runClient`
 * Animation direkt im Hauptmenü ansehen: `./gradlew runClient -Ppreview=zufall` (oder `-Ppreview=goldticket`),
   bestimmte Animation mit `-Panim=schiessstand`, `-Panim=slot` oder `-Panim=roulette`
 * Alle Grafiken neu erzeugen (Python + Pillow): `python3 tools/generate_textures.py`
+* Sicherheits-Check: `tools/SicherheitsCheck.java` (Positivliste erlaubter Funktionen)
 
 ## Projektaufbau
 

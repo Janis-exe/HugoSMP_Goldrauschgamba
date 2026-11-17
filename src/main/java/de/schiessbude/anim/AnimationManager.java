@@ -20,6 +20,8 @@ import java.util.Random;
 public final class AnimationManager {
 	private static final Logger LOG = LoggerFactory.getLogger("schiessbude");
 	private static final Deque<Reward> QUEUE = new ArrayDeque<>();
+	/** Mehr Funde stehen nie an: ein Server kann den Bildschirm so nicht dauerhaft blockieren. */
+	public static final int MAX_QUEUE = 20;
 	private static final Random RANDOM = new Random();
 	private static CasinoAnimation current;
 	private static long lastFrameNanos = -1L;
@@ -36,6 +38,10 @@ public final class AnimationManager {
 		if (!cfg.enabled) return;
 		if (!reward.prize().rarity.atLeast(cfg.minRarity)) {
 			LOG.debug("Fund {} unter Mindest-Seltenheit - keine Animation", reward.prize().id);
+			return;
+		}
+		if (QUEUE.size() >= MAX_QUEUE) {
+			LOG.warn("Schießbude: Warteschlange voll ({} Funde) - Fund '{}' wird ohne Animation übersprungen", MAX_QUEUE, reward.prize().name);
 			return;
 		}
 		LOG.info("Schießbude: Fund '{}' ({}) aus {} in die Warteschlange ({})", reward.prize().name, reward.detail(), reward.source(),

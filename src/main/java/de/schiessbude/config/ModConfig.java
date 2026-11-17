@@ -71,6 +71,8 @@ public class ModConfig {
 	public int duplicateWindowMs = 250;
 	/** Debug: jeden empfangenen Chat-/Actionbar-/Titel-Text in config/schiessbude/pakete.log schreiben. */
 	public boolean logPackets = false;
+	/** Das eigene Paket "schiessbude:reward" vom Server annehmen (nur Gewinn-ID und kurzer Text). */
+	public boolean allowServerPayload = true;
 
 	// ---- Gewinne -----------------------------------------------------------
 	public List<PrizeDefinition> prizes = defaultPrizes();

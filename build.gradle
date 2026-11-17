@@ -46,6 +46,23 @@ dependencies {
 	compileOnly "com.terraformersmc:modmenu:${project.modmenu_version}"
 }
 
+// ---- Sicherheits-Check (Schutz gegen "geratet werden" über diese Mod) -------------------------------------------
+// Prüft die fertige .jar mit tools/SicherheitsCheck.java: nur erlaubte Funktionen, keine versteckten Dateien.
+// Schlägt der Check fehl, schlägt der ganze Build fehl - eine unsichere Version kann so nie entstehen.
+def modJar = tasks.named("jar").flatMap { it.archiveFile }
+def checkerJava = javaToolchains.launcherFor { languageVersion = JavaLanguageVersion.of(25) }.map { it.executablePath.asFile.absolutePath }
+def sicherheitsCheck = tasks.register("sicherheitsCheck", Exec) {
+	group = "verification"
+	description = "Prüft die Mod-Datei auf verbotene Funktionen (Internet, Prozesse, Reflection, Account-Daten ...)."
+	dependsOn tasks.named("jar")
+	inputs.file(modJar)
+	inputs.file("tools/SicherheitsCheck.java")
+	executable = checkerJava.get()
+	args "-Dstdout.encoding=UTF-8", "tools/SicherheitsCheck.java", modJar.get().asFile.absolutePath
+}
+tasks.named("check") { dependsOn sicherheitsCheck }
+tasks.named("build") { dependsOn sicherheitsCheck }
+
 processResources {
 	def version = project.version
 	inputs.property "version", version

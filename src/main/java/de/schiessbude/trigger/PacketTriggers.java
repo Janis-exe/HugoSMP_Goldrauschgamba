@@ -13,17 +13,30 @@ import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.nio.file.StandardCopyOption;
 import java.nio.file.StandardOpenOption;
 import java.time.LocalTime;
 import java.time.format.DateTimeFormatter;
+import java.util.regex.Pattern;
 
 /**
  * Wertet die Text-Pakete aus, die der Client vom Server empfängt
  * (Systemnachricht im Chat, Actionbar, Titel, Untertitel) und startet bei einem Fund die Animation.
+ * <p>
+ * Sicherheit: Alles, was vom Server kommt, wird nur gelesen, in der Länge begrenzt und als Text angezeigt.
+ * Nichts davon wird ausgeführt, als Dateipfad benutzt oder irgendwohin gesendet.
  */
 public final class PacketTriggers {
 	private static final Logger LOG = LoggerFactory.getLogger("schiessbude");
 	private static final DateTimeFormatter TIME = DateTimeFormatter.ofPattern("HH:mm:ss.SSS");
+	/** Nur so viel Text wird untersucht: Fund-Nachrichten sind kurz, riesige Nachrichten können das Spiel nicht einfrieren. */
+	public static final int MAX_TEXT = 512;
+	/** Längste Detail-Angabe (Betrag, Spawner-Typ), die angezeigt wird. */
+	public static final int MAX_DETAIL = 48;
+	/** Paket-Log: ab dieser Größe wird es nach pakete.alt.log verschoben (höchstens 2 x 1 MB auf der Platte). */
+	private static final long MAX_LOG_BYTES = 1_000_000L;
+	private static final Pattern PRIZE_ID = Pattern.compile("[A-Za-z0-9_\\-]{1,32}");
+	private static final Pattern CONTROL = Pattern.compile("[\\p{Cntrl}\\p{Cf}\\u00A7]");
 
 	public enum Source {
 		CHAT("Chat"), ACTIONBAR("Actionbar"), TITLE("Titel"), SUBTITLE("Untertitel"), PAYLOAD("Server-Paket"), TEST("Test");
@@ -45,6 +58,7 @@ public final class PacketTriggers {
 		if (component == null) return;
 		String plain = ChatFormatting.stripFormatting(component.getString());
 		if (plain == null || plain.isBlank()) return;
+		if (plain.length() > MAX_TEXT) plain = plain.substring(0, MAX_TEXT);
 		ModConfig cfg = ModConfig.get();
 		if (cfg.logPackets) log(source, plain);
 
@@ -60,7 +74,7 @@ public final class PacketTriggers {
 
 		for (PrizeDefinition prize : cfg.prizes) {
 			if (prize.matches(plain)) {
-				fire(new Reward(prize, prize.extractDetail(plain), source.label), source);
+				fire(new Reward(prize, clean(prize.extractDetail(plain), MAX_DETAIL), source.label), source);
 				return;
 			}
 		}
@@ -70,13 +84,15 @@ public final class PacketTriggers {
 	public static void onPayload(String data) {
 		ModConfig cfg = ModConfig.get();
 		if (cfg.logPackets) log(Source.PAYLOAD, data);
+		if (!cfg.allowServerPayload || !cfg.enabled) return;
 		String[] parts = data.split("\\|", 2);
-		PrizeDefinition prize = cfg.findPrize(parts[0].trim());
+		String id = parts[0].trim();
+		PrizeDefinition prize = PRIZE_ID.matcher(id).matches() ? cfg.findPrize(id) : null;
 		if (prize == null) {
-			LOG.warn("Server-Paket mit unbekanntem Gewinn: '{}'", parts[0]);
+			LOG.warn("Server-Paket mit unbekanntem Gewinn ignoriert: '{}'", clean(id, 32));
 			return;
 		}
-		String detail = parts.length > 1 ? parts[1].trim() : null;
+		String detail = parts.length > 1 ? clean(parts[1], MAX_DETAIL) : null;
 		fire(new Reward(prize, detail, Source.PAYLOAD.label), Source.PAYLOAD);
 	}
 
@@ -93,13 +109,27 @@ public final class PacketTriggers {
 		AnimationManager.enqueue(reward);
 	}
 
+	/** Entfernt Steuerzeichen und Farbcodes und kürzt auf {@code max} Zeichen. Null/leer bleibt null. */
+	public static String clean(String text, int max) {
+		if (text == null) return null;
+		String s = CONTROL.matcher(text).replaceAll(" ").trim();
+		if (s.length() > max) s = s.substring(0, max).trim();
+		return s.isEmpty() ? null : s;
+	}
+
 	private static void log(Source source, String plain) {
-		String line = "[" + LocalTime.now().format(TIME) + "] " + source.label.toUpperCase() + ": " + plain.replace('\n', ' ');
+		String text = CONTROL.matcher(plain.length() > MAX_TEXT ? plain.substring(0, MAX_TEXT) : plain).replaceAll(" ");
+		String line = "[" + LocalTime.now().format(TIME) + "] " + source.label.toUpperCase() + ": " + text;
 		LOG.info("[Paket] {}", line);
 		try {
+			// fester Ort: config/schiessbude/pakete.log - der Server hat keinen Einfluss auf Pfad oder Dateiname
 			Path dir = ModConfig.dataDir();
 			Files.createDirectories(dir);
-			Files.writeString(dir.resolve("pakete.log"), line + System.lineSeparator(), StandardCharsets.UTF_8,
+			Path file = dir.resolve("pakete.log");
+			if (Files.exists(file) && Files.size(file) > MAX_LOG_BYTES) {
+				Files.move(file, dir.resolve("pakete.alt.log"), StandardCopyOption.REPLACE_EXISTING);
+			}
+			Files.writeString(file, line + System.lineSeparator(), StandardCharsets.UTF_8,
 					StandardOpenOption.CREATE, StandardOpenOption.APPEND);
 		} catch (IOException e) {
 			LOG.warn("Konnte Paket-Log nicht schreiben", e);

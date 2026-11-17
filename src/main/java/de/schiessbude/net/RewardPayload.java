@@ -18,13 +18,18 @@ import java.nio.charset.StandardCharsets;
  */
 public record RewardPayload(String data) implements CustomPacketPayload {
 	public static final Type<RewardPayload> TYPE = new Type<>(Identifier.fromNamespaceAndPath("schiessbude", "reward"));
+	/** Mehr braucht "gewinn_id|Detail" nie. Alles darüber wird ungelesen verworfen. */
+	public static final int MAX_BYTES = 256;
 
 	public static final StreamCodec<FriendlyByteBuf, RewardPayload> CODEC = StreamCodec.of(
 			(buf, payload) -> buf.writeBytes(payload.data().getBytes(StandardCharsets.UTF_8)),
 			buf -> {
-				byte[] bytes = new byte[buf.readableBytes()];
+				int total = buf.readableBytes();
+				byte[] bytes = new byte[Math.min(total, MAX_BYTES)];
 				buf.readBytes(bytes);
-				return new RewardPayload(new String(bytes, StandardCharsets.UTF_8));
+				buf.skipBytes(total - bytes.length);
+				// zu große Pakete werden komplett ignoriert (leerer Inhalt = unbekannter Gewinn)
+				return new RewardPayload(total > MAX_BYTES ? "" : new String(bytes, StandardCharsets.UTF_8));
 			});
 
 	@Override
