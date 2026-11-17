@@ -173,8 +173,9 @@ public class SicherheitsCheck {
 	private void checkMixinJson(String json) {
 		if (!json.contains("\"package\": \"de.schiessbude.mixin\"")) problems.add("Mixins liegen nicht im eigenen Paket");
 		String list = json.replaceAll("(?s).*\"client\"\\s*:\\s*\\[(.*?)].*", "$1").replaceAll("\\s", "");
-		// ChatComponentMixin: Chat während der Animation ausblenden; TextDisplayMixin: Geld-Drop-Schilder lesen
-		if (!list.equals("\"ChatComponentMixin\",\"TextDisplayMixin\"")) problems.add("Unerwartete Mixins: " + list);
+		// ChatComponentMixin: Chat während der Animation ausblenden; HudTitleMixin: Titel/Untertitel lesen;
+		// TextDisplayMixin: Geld-Drop-Schilder lesen
+		if (!list.equals("\"ChatComponentMixin\",\"HudTitleMixin\",\"TextDisplayMixin\"")) problems.add("Unerwartete Mixins: " + list);
 		if (json.contains("\"server\"") || json.contains("\"mixins\"") || json.contains("plugin")) {
 			problems.add("Unerwartete Mixin-Einträge (server/mixins/plugin)");
 		}

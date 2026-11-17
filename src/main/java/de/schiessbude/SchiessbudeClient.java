@@ -72,8 +72,7 @@ public class SchiessbudeClient implements ClientModInitializer {
 		// ---- Server-Pakete: Chat (System), Actionbar, Titel, Untertitel ----
 		ClientReceiveMessageEvents.GAME.register((message, overlay) ->
 				PacketTriggers.onText(message, overlay ? PacketTriggers.Source.ACTIONBAR : PacketTriggers.Source.CHAT));
-		ClientReceiveMessageEvents.TITLE.register(title -> PacketTriggers.onText(title, PacketTriggers.Source.TITLE));
-		ClientReceiveMessageEvents.SUBTITLE.register(subtitle -> PacketTriggers.onText(subtitle, PacketTriggers.Source.SUBTITLE));
+		// Titel und Untertitel: siehe HudTitleMixin (läuft so auch mit Fabric API 0.161)
 
 		// ---- Optional: eigenes Paket "schiessbude:reward" ----
 		PayloadTypeRegistry.clientboundPlay().register(RewardPayload.TYPE, RewardPayload.CODEC);

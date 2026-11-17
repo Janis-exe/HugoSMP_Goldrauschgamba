@@ -77,25 +77,25 @@ Die meisten RATs stecken in **gefälschten Kopien** bekannter Mods. Lade die Mod
 
 1. **Prüfsumme vergleichen:** Im [Actions](../../actions/workflows/build.yml)-Durchlauf steht in der Zusammenfassung
    die SHA-256 der echten .jar (auch in `SHA256SUMS.txt` im Download). Deine Datei prüfen:
-   * Windows (PowerShell): `Get-FileHash goldrausch-schiessbude-1.4.0.jar`
-   * Linux/macOS: `sha256sum goldrausch-schiessbude-1.4.0.jar`
+   * Windows (PowerShell): `Get-FileHash goldrausch-schiessbude-1.4.1.jar`
+   * Linux/macOS: `sha256sum goldrausch-schiessbude-1.4.1.jar`
 
    Stimmt die Zahl nicht exakt überein: **nicht benutzen.**
 2. **Herkunftsnachweis (mit GitHub CLI):**
-   `gh attestation verify goldrausch-schiessbude-1.4.0.jar --repo Janis-exe/hugosmp_goldrauschgamba`
+   `gh attestation verify goldrausch-schiessbude-1.4.1.jar --repo Janis-exe/hugosmp_goldrauschgamba`
    bestätigt, dass die Datei von GitHub aus genau diesem Repository gebaut wurde.
-3. **Inhalt prüfen (mit JDK 25):** `java tools/SicherheitsCheck.java goldrausch-schiessbude-1.4.0.jar`
+3. **Inhalt prüfen (mit JDK 25):** `java tools/SicherheitsCheck.java goldrausch-schiessbude-1.4.1.jar`
 4. **Selbst bauen:** Der Build ist reproduzierbar. `./gradlew build` ergibt aus diesem Code Byte für Byte dieselbe
-   .jar mit derselben SHA-256 wie bei GitHub. Version 1.4.0:
-   `cf597ff204b3eb195329598dac8eeb96fcb53e58f99089892ec5e74c890f11b5`
+   .jar mit derselben SHA-256 wie bei GitHub. Version 1.4.1:
+   `dc15631d788ef3b2da181e77e45f8158081b4cbad7f3ea5e4e92821bd5b6804b`
 
 Hinweis: Das schützt vor einem RAT **über diese Mod**. Andere Mods, Programme oder Downloads prüft es nicht.
 
 ## Installation
 
-1. [Fabric Loader](https://fabricmc.net/use/) **0.20.1+** für Minecraft **26.3** installieren.
-2. **Fabric API** für 26.3 in den `mods`-Ordner legen.
-3. `goldrausch-schiessbude-1.4.0.jar` in den `mods`-Ordner legen (eine ältere Version vorher löschen).
+1. [Fabric Loader](https://fabricmc.net/use/) **0.19.3+** für Minecraft **26.3** installieren.
+2. **Fabric API** für 26.3 (**0.161.0** oder neuer) in den `mods`-Ordner legen.
+3. `goldrausch-schiessbude-1.4.1.jar` in den `mods`-Ordner legen (eine ältere Version vorher löschen).
 4. Optional: **Mod Menu** (21.0.1+). Dann gibt es dort den Knopf „Konfigurieren“.
 
 ## Bedienung
@@ -163,8 +163,8 @@ andere Drops anders geschrieben werden. Ignorierte Drops stehen im Minecraft-Log
 Die Mod liest außerdem die Text-Pakete, die der Client vom Server empfängt:
 
 * `ClientboundSystemChatPacket` (Chat-Systemnachricht und Actionbar)
-* `ClientboundSetTitleTextPacket` (Titel)
-* `ClientboundSetSubtitleTextPacket` (Untertitel)
+* `ClientboundSetTitleTextPacket` (Titel) und `ClientboundSetSubtitleTextPacket` (Untertitel), abgegriffen direkt am
+  HUD (`HudTitleMixin`), damit die Mod auch mit älterer Fabric API läuft
 
 Enthält ein Text den Namen eines Gewinns (z. B. „Goldbarren“) **und** ein Wort wie „gefunden“, startet
 die Animation. Ein Betrag wie `12.345 $` im Text wird automatisch mit angezeigt.
@@ -172,7 +172,8 @@ die Animation. Ein Betrag wie `12.345 $` im Text wird automatisch mit angezeigt.
 ### Die genaue Server-Nachricht herausfinden
 1. Im Menü **Pakete loggen** einschalten.
 2. Auf dem Server etwas finden.
-3. Die Datei `.minecraft/config/schiessbude/pakete.log` öffnen. Dort steht jeder empfangene Text, z. B.
+3. Die Datei `config/schiessbude/pakete.log` im Ordner deiner Minecraft-Instanz öffnen (bei NoRisk z. B.
+   `D:\profiles\<Instanz>\config\schiessbude\pakete.log`). Dort steht jeder empfangene Text, z. B.
    `[20:04:41.123] CHAT: Goldrausch » Du hast einen Goldbarren gefunden! (+1.250.000 $)`
 4. In `.minecraft/config/schiessbude.json` die Muster anpassen und im Menü auf **Konfig neu laden** klicken:
    * `requiredPattern`: Muss in jeder Fund-Nachricht vorkommen (z. B. `Du hast`). Damit lösen Werbung
@@ -223,7 +224,7 @@ Benötigt **JDK 25**.
 ./gradlew build
 ```
 
-Die fertige Mod liegt danach unter `build/libs/goldrausch-schiessbude-1.4.0.jar`. `build` führt dabei automatisch
+Die fertige Mod liegt danach unter `build/libs/goldrausch-schiessbude-1.4.1.jar`. `build` führt dabei automatisch
 den Sicherheits-Check aus (einzeln: `./gradlew sicherheitsCheck`).
 
 * Minecraft mit der Mod starten: `./gradlew runClient`
@@ -250,6 +251,7 @@ src/main/java/de/schiessbude/
 ├─ gui/SettingsScreen.java         Einstellungsmenü
 ├─ gui/PreviewScreen.java          Vorschau ohne Welt
 ├─ mixin/ChatComponentMixin.java   Versteckt den Chat während der Animation
+├─ mixin/HudTitleMixin.java        Liest Titel und Untertitel
 ├─ mixin/TextDisplayMixin.java     Meldet neuen Text von schwebenden Schildern (Geld-Drops)
 └─ compat/ModMenuIntegration.java  Mod-Menu-Knopf
 ```
