@@ -7,6 +7,7 @@ import de.schiessbude.anim.AnimationManager;
 import de.schiessbude.config.AnimationType;
 import de.schiessbude.config.ModConfig;
 import de.schiessbude.config.PrizeDefinition;
+import de.schiessbude.config.PrizeVariant;
 import de.schiessbude.config.Reward;
 import de.schiessbude.gui.PreviewScreen;
 import de.schiessbude.gui.SettingsScreen;
@@ -122,6 +123,7 @@ public class SchiessbudeClient implements ClientModInitializer {
 	}
 
 	private void onTick(Minecraft mc) {
+		MoneyDrops.tick();
 		if (openSettingsNextTick && mc.gui.screen() == null) {
 			openSettingsNextTick = false;
 			mc.gui.setScreen(new SettingsScreen(null));
@@ -169,7 +171,10 @@ public class SchiessbudeClient implements ClientModInitializer {
 		ModConfig cfg = ModConfig.get();
 		PrizeDefinition prize = prizeId != null ? cfg.findPrize(prizeId) : null;
 		if (prize == null) prize = cfg.randomPrize(RANDOM);
-		return new Reward(prize, prize.randomTestDetail(RANDOM), source, type == null ? AnimationType.RANDOM : type);
+		AnimationType animation = type == null ? AnimationType.RANDOM : type;
+		PrizeVariant variant = prize.randomVariant(RANDOM);
+		String detail = variant != null ? variant.name : prize.randomTestDetail(RANDOM);
+		return new Reward(prize, detail, source, animation, variant, null);
 	}
 
 	public static void enqueueTestReward(String source, AnimationType type) {

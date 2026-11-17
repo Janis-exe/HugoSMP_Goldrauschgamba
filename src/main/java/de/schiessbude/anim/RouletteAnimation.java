@@ -54,6 +54,13 @@ public final class RouletteAnimation extends CasinoAnimation {
 
 	private final PrizeDefinition[] pockets = new PrizeDefinition[POCKETS];
 	private final int winIdx;
+	/**
+	 * Wie das Ende abläuft: +1 = Kugel bleibt erst im Fach davor liegen (Lockvogel) und hüpft dann ins Gewinnfach,
+	 * -1 = sie springt erst übers Gewinnfach ins Fach dahinter und hüpft zurück, 0 = sie fällt direkt hinein.
+	 */
+	private final int teaseOffset;
+	/** Winkel (relativ zum Rad), in dem die Kugel während der Spannungspause liegt. */
+	private float teaseRho;
 
 	/** Felder des Einsatzfelds (eins pro Gewinn) und die gesetzten Stapel. */
 	private final List<PrizeDefinition> fields;
@@ -71,20 +78,23 @@ public final class RouletteAnimation extends CasinoAnimation {
 		super(reward, seed, chained);
 		PrizeDefinition win = reward.prize();
 		winIdx = rnd.nextInt(POCKETS);
+		float roll = rnd.nextFloat();
+		teaseOffset = roll < 0.34f ? 0 : roll < 0.67f ? 1 : -1;
 		fillPockets(win);
+		if (teaseOffset < 0) mirrorPockets();
 
 		// --- Einsatzfeld: ein Feld pro Gewinn; gesetzt wird auf den Gewinn, den Lockvogel und ein weiteres Feld ---
 		fields = new ArrayList<>(ModConfig.get().prizes);
 		fieldW = Math.min(52f, 256f / fields.size());
 		winField = fieldOf(win);
-		teaseField = fieldOf(pockets[(winIdx + 1) % POCKETS]);
+		teaseField = teaseOffset == 0 ? -1 : fieldOf(pockets[Math.floorMod(winIdx + teaseOffset, POCKETS)]);
 		List<Integer> chosen = new ArrayList<>();
 		chosen.add(winField);
-		if (!chosen.contains(teaseField)) chosen.add(teaseField);
+		if (teaseField >= 0 && !chosen.contains(teaseField)) chosen.add(teaseField);
 		List<Integer> others = new ArrayList<>();
 		for (int i = 0; i < fields.size(); i++) if (!chosen.contains(i)) others.add(i);
 		Collections.shuffle(others, rnd);
-		if (!others.isEmpty()) chosen.add(others.getFirst());
+		for (int i = 0; chosen.size() < 3 && i < others.size(); i++) chosen.add(others.get(i));
 		Collections.sort(chosen);
 
 		// --- Die Hand nimmt Chips aus der Reihe und setzt sie (von links nach rechts) ---
@@ -110,22 +120,45 @@ public final class RouletteAnimation extends CasinoAnimation {
 		// --- Kugel: rollen, fallen, hüpfen, Spannung, Gewinn ---
 		tDrop = tLaunch + 2.5f;
 		float base = winIdx * STEP;
-		float hold = rarity == Rarity.LEGENDARY ? 1.05f : rarity == Rarity.EPIC ? 0.9f : 0.65f;
+		float hold = (rarity == Rarity.LEGENDARY ? 1.05f : rarity == Rarity.EPIC ? 0.9f : 0.65f) * (0.7f + 0.6f * rnd.nextFloat());
 		float t1 = tDrop + 0.3f, t2 = t1 + 0.22f;
-		tTease = t2 + 0.2f;
-		tTeaseEnd = tTease + hold;
-		float t5 = tTeaseEnd + 0.3f;
-		tRest = t5 + 0.14f;
 		hops.add(new Hop(tDrop, t1, base + 4.2f * STEP, base + 3 * STEP, 8f, R_TRACK - 6f * K, R_BALL, true));
 		hops.add(new Hop(t1, t2, base + 3 * STEP, base + 2 * STEP, 6f, R_BALL, R_BALL, false));
-		hops.add(new Hop(t2, tTease, base + 2 * STEP, base + STEP, 4.5f, R_BALL, R_BALL, false));
-		hops.add(new Hop(tTeaseEnd, t5, base + STEP, base, 10f, R_BALL, R_BALL, false));
+		float t5;
+		if (teaseOffset > 0) {
+			// bleibt im Fach davor liegen ... und hüpft doch noch weiter
+			tTease = t2 + 0.2f;
+			hops.add(new Hop(t2, tTease, base + 2 * STEP, base + STEP, 4.5f, R_BALL, R_BALL, false));
+			tTeaseEnd = tTease + hold;
+			t5 = tTeaseEnd + 0.3f;
+			hops.add(new Hop(tTeaseEnd, t5, base + STEP, base, 10f, R_BALL, R_BALL, false));
+		} else if (teaseOffset < 0) {
+			// springt übers Gewinnfach hinweg ... und kullert zurück
+			float t3 = t2 + 0.2f;
+			hops.add(new Hop(t2, t3, base + 2 * STEP, base + STEP, 4.5f, R_BALL, R_BALL, false));
+			tTease = t3 + 0.3f;
+			hops.add(new Hop(t3, tTease, base + STEP, base - STEP, 9f, R_BALL, R_BALL, false));
+			tTeaseEnd = tTease + hold;
+			t5 = tTeaseEnd + 0.32f;
+			hops.add(new Hop(tTeaseEnd, t5, base - STEP, base, 8f, R_BALL, R_BALL, false));
+		} else {
+			// fällt direkt hinein, wackelt kurz ... bleibt es liegen?
+			float t3 = t2 + 0.2f;
+			hops.add(new Hop(t2, t3, base + 2 * STEP, base + STEP, 4.5f, R_BALL, R_BALL, false));
+			tTease = t3 + 0.24f;
+			hops.add(new Hop(t3, tTease, base + STEP, base, 4f, R_BALL, R_BALL, false));
+			tTeaseEnd = tTease + hold * 0.6f;
+			t5 = tTeaseEnd + 0.18f;
+			hops.add(new Hop(tTeaseEnd, t5, base, base, 3.5f, R_BALL, R_BALL, false));
+		}
+		teaseRho = base + teaseOffset * STEP;
+		tRest = t5 + 0.14f;
 		hops.add(new Hop(t5, tRest, base, base, 2.5f, R_BALL, R_BALL, false));
 		for (Hop h : hops) {
 			cue(h.t1, SoundEvents.STONE_BUTTON_CLICK_ON, 1.6f + rnd.nextFloat() * 0.3f, 0.45f);
 			cue(h.t1, SoundEvents.NOTE_BLOCK_HAT, 1.4f, 0.3f);
 		}
-		cue(tTease, SoundEvents.NOTE_BLOCK_BELL, 1.2f, 0.35f);
+		if (teaseOffset != 0) cue(tTease, SoundEvents.NOTE_BLOCK_BELL, 1.2f, 0.35f);
 		heartbeat(tTease + 0.1f, tTeaseEnd);
 		cue(tRest, SoundEvents.STONE_BUTTON_CLICK_ON, 1.3f, 0.7f);
 		cue(tRest, SoundEvents.NOTE_BLOCK_PLING, 1.5f, 0.6f);
@@ -217,6 +250,14 @@ public final class RouletteAnimation extends CasinoAnimation {
 		}
 	}
 
+	/** Spiegelt die Fächer am Gewinnfach: der Lockvogel liegt dann im Fach dahinter (winIdx - 1). */
+	private void mirrorPockets() {
+		PrizeDefinition[] copy = pockets.clone();
+		for (int d = 0; d < POCKETS; d++) {
+			pockets[Math.floorMod(winIdx - d, POCKETS)] = copy[Math.floorMod(winIdx + d, POCKETS)];
+		}
+	}
+
 	/** Leises Klackern, wenn die Kugel über die Rauten der Bahn rollt. */
 	private void scheduleRollTicks() {
 		double seg = Math.PI / 4;
@@ -275,7 +316,7 @@ public final class RouletteAnimation extends CasinoAnimation {
 		if (time >= tTease && time < tTeaseEnd) {
 			// liegt im Lockvogel-Fach und wackelt
 			float wob = 0.05f * (float) Math.sin((time - tTease) * 26f) * (1f - Gfx.progress(time, tTease, 0.5f) * 0.6f);
-			return new float[]{wheel + hops.get(2).rho1 + wob, R_BALL, 0f};
+			return new float[]{wheel + teaseRho + wob, R_BALL, 0f};
 		}
 		return new float[]{wheel + hops.getLast().rho1, R_BALL, 0f};
 	}
@@ -353,7 +394,7 @@ public final class RouletteAnimation extends CasinoAnimation {
 		float wheel = wheelAngle(t);
 		drawWheel(g, wheel);
 		if (t >= tWin) drawWinnerPocket(g, wheel);
-		if (t >= tTease && t < tTeaseEnd) drawTeaseGlow(g, wheel);
+		if (teaseOffset != 0 && t >= tTease && t < tTeaseEnd) drawTeaseGlow(g, wheel);
 		drawBall(g);
 		drawCroupierHand(g);
 		drawSign(g);
@@ -388,7 +429,7 @@ public final class RouletteAnimation extends CasinoAnimation {
 			// Seltenheits-Streifen unten verbindet das Feld mit der Farbe des Fachs im Rad
 			Gfx.rect(g, x + 2f, GY + CH - 7f, fieldW - 4f, 5f, Gfx.argb(prize.rarity.color, 1f));
 			float icon = Math.min(30f, fieldW * 0.68f);
-			PrizeIcon.of(prize).draw(g, x + fieldW / 2f, GY + 22f, icon, icon, 0f, Gfx.argb(0xFFFFFFFF, 1f));
+			icon(prize).draw(g, x + fieldW / 2f, GY + 22f, icon, icon, 0f, Gfx.argb(0xFFFFFFFF, 1f));
 			// Name senkrecht wie die Zahlen auf einem echten Tisch
 			String name = prize.name.toUpperCase(Locale.GERMAN);
 			float scale = Math.min(Math.min(1.1f, fieldW / 14f), 66f / Math.max(1, Gfx.textWidth(name)));
@@ -409,7 +450,7 @@ public final class RouletteAnimation extends CasinoAnimation {
 		Gfx.rect(g, GX + w - 0.8f, GY + CH, 1.6f, 22f, line);
 		Gfx.centeredText(g, "GEWINN-FELDER", GX + w / 2f, GY + CH + 11f, 0.9f, 0xFFEDE6C8, 0.95f);
 
-		if (teasing && teaseField != winField) {
+		if (teasing && teaseField >= 0 && teaseField != winField) {
 			float f = Gfx.progress(t, tTease, 0.15f) * (1f - Gfx.progress(t, tTeaseEnd - 0.1f, 0.1f));
 			float pulse = 0.6f + 0.4f * (float) Math.sin((t - tTease) * 16f);
 			Gfx.texCentered(g, T_GLOW, fieldX(teaseField), GY + CH / 2f, fieldW * 2.6f, CH * 1.3f, 0f,
@@ -491,7 +532,7 @@ public final class RouletteAnimation extends CasinoAnimation {
 			p.rotate(i * STEP);
 			p.translate(R_ICON, 0f);
 			p.rotate((float) (-Math.PI / 2));
-			PrizeIcon.of(pockets[i]).draw(g, 0f, 0f, ICON, ICON, 0f, Gfx.argb(0xFFFFFFFF, 1f - 0.5f * blur));
+			icon(pockets[i]).draw(g, 0f, 0f, ICON, ICON, 0f, Gfx.argb(0xFFFFFFFF, 1f - 0.5f * blur));
 			p.popMatrix();
 		}
 		Gfx.texCentered(g, T_FRETS, 0, 0, WHEEL_R * 2, WHEEL_R * 2, 0f, Gfx.argb(0xFFFFFFFF, 1f));
@@ -512,12 +553,12 @@ public final class RouletteAnimation extends CasinoAnimation {
 		Gfx.texCentered(g, T_GLOW, x, y, 105 * pulse, 82 * pulse, 0f, Gfx.argb(rarity.color, 0.9f * hp));
 		float bob = (float) Math.sin((t - tWin) * 5f) * 2f * hp;
 		float size = ICON * (1f + 0.4f * Gfx.easeOutBack(hp)) * pulse;
-		PrizeIcon.of(pockets[winIdx]).draw(g, x, y - 4f * hp + bob, size, size, 0f, Gfx.argb(0xFFFFFFFF, 1f));
+		icon(pockets[winIdx]).draw(g, x, y - 4f * hp + bob, size, size, 0f, Gfx.argb(0xFFFFFFFF, 1f));
 		drawSparkles(g, x, y, 28f, 6, t - tWin);
 	}
 
 	private void drawTeaseGlow(GuiGraphicsExtractor g, float wheel) {
-		int tease = (winIdx + 1) % POCKETS;
+		int tease = Math.floorMod(winIdx + teaseOffset, POCKETS);
 		float a = pocketAngle(tease, wheel);
 		float f = Gfx.progress(t, tTease, 0.15f) * (1f - Gfx.progress(t, tTeaseEnd - 0.1f, 0.1f));
 		float pulse = 0.6f + 0.4f * (float) Math.sin((t - tTease) * 16f);

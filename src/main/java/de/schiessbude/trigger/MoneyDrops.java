@@ -3,15 +3,24 @@ package de.schiessbude.trigger;
 import de.schiessbude.config.ModConfig;
 import de.schiessbude.config.PrizeDefinition;
 import de.schiessbude.config.Reward;
+import de.schiessbude.config.ServerSound;
 import net.minecraft.ChatFormatting;
 import net.minecraft.client.Minecraft;
+import net.minecraft.client.resources.sounds.EntityBoundSoundInstance;
+import net.minecraft.client.resources.sounds.SoundInstance;
+import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.network.chat.Component;
+import net.minecraft.resources.Identifier;
 import net.minecraft.world.entity.Entity;
+import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.item.Items;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.LinkedHashSet;
+import java.util.List;
 import java.util.Locale;
 import java.util.Set;
 import java.util.regex.Matcher;
@@ -26,6 +35,11 @@ import java.util.regex.Pattern;
  * <p>
  * Damit Drops anderer Spieler nichts auslösen, zählt ein Schild nur, wenn es nah bei dir ist und du gerade selbst
  * einen Block abgebaut hast. Jedes Schild löst höchstens einmal aus.
+ * <p>
+ * Sounds: Der Server spielt beim Drop eigene Sounds ab (direkt nach dem goldenen Nugget-Display, noch bevor das
+ * Schild mit dem Betrag kommt, und einen am Ende). Damit sie nichts verraten, werden genau diese Sounds kurz
+ * zurückgehalten: Wird der Drop erkannt, laufen sie erst bei der Enthüllung in der Animation. Sonst werden sie sofort
+ * nachgeholt. Normale Minecraft-Sounds (z. B. Abbau-Geräusche) werden nie angehalten.
  * <p>
  * Sicherheit: Es wird nur gelesen. Der Text wird in der Länge begrenzt, von Steuerzeichen befreit und nur angezeigt.
  */
@@ -45,6 +59,16 @@ public final class MoneyDrops {
 	private static final Set<String> LOGGED = new LinkedHashSet<>();
 	private static long lastOwnBreak;
 	private static boolean brokeBlock;
+
+	/** Nach dem Nugget-Display so lange auf das Schild mit dem Betrag warten (Sounds solange zurückhalten). */
+	private static final long ARM_NANOS = 600_000_000L;
+	/** Nach dem erkannten Schild auch den Schluss-Sound des Servers noch abfangen. */
+	private static final long TAIL_NANOS = 1_400_000_000L;
+	private static final int MAX_SOUNDS = 8;
+	private static boolean capturing, assigned, replaying;
+	private static long captureStart, captureUntil;
+	private static int captureEntity;
+	private static List<ServerSound> captured;
 
 	private MoneyDrops() {
 	}
@@ -84,7 +108,10 @@ public final class MoneyDrops {
 		if (amount <= 0) return;
 		if (!remember(TRIGGERED, entity.getId(), 64)) return;
 
-		if (!cfg.triggerMoneyDrops || !cfg.enabled) return;
+		if (!cfg.triggerMoneyDrops || !cfg.enabled) {
+			finishCapture();
+			return;
+		}
 		if (!near) {
 			LOG.info("Geld-Drop {} ignoriert: {} Blöcke entfernt (Drop eines anderen Spielers?)", m.group().trim(),
 					String.format(Locale.ROOT, "%.1f", distance));
@@ -97,7 +124,85 @@ public final class MoneyDrops {
 		PrizeDefinition prize = cfg.prizeForMoney(amount);
 		if (prize == null) return;
 		String detail = PacketTriggers.clean(m.group().trim(), PacketTriggers.MAX_DETAIL);
-		PacketTriggers.fire(new Reward(prize, detail, PacketTriggers.Source.MONEY_DROP.label), PacketTriggers.Source.MONEY_DROP);
+		// zurückgehaltene Server-Sounds gehören zu diesem Fund und laufen erst bei der Enthüllung
+		List<ServerSound> sounds = capturing && !assigned ? captured : null;
+		Reward reward = new Reward(prize, detail, PacketTriggers.Source.MONEY_DROP.label, null, null, sounds);
+		boolean queued = PacketTriggers.fire(reward, PacketTriggers.Source.MONEY_DROP);
+		if (sounds != null && queued) {
+			assigned = true;
+			captureUntil = System.nanoTime() + TAIL_NANOS;
+		} else {
+			finishCapture();
+		}
+	}
+
+	// ---- Server-Sounds zurückhalten -------------------------------------------------------------------------------
+
+	/** Ein Item-Display hat ein Item bekommen. Goldnugget in deiner Nähe direkt nach dem Abbauen = Geld-Drop beginnt. */
+	public static void onItemDisplay(Entity entity, ItemStack stack) {
+		if (entity == null || stack == null || !entity.level().isClientSide()) return;
+		ModConfig cfg = ModConfig.get();
+		if (!cfg.enabled || !cfg.triggerMoneyDrops || !cfg.moneyDropSoundAtReveal) return;
+		if (!stack.is(Items.GOLD_NUGGET)) return;
+		// der Server schickt das Item mehrmals: nur das erste Mal zählt
+		if (capturing && entity.getId() == captureEntity) return;
+		Entity camera = Minecraft.getInstance().getCameraEntity();
+		if (camera == null || camera.distanceToSqr(entity) > (double) cfg.moneyDropMaxDistance * cfg.moneyDropMaxDistance) return;
+		if (cfg.moneyDropNeedsMining && (!brokeBlock || System.nanoTime() - lastOwnBreak > MINING_WINDOW_NANOS)) return;
+		finishCapture();
+		captured = new ArrayList<>();
+		assigned = false;
+		capturing = true;
+		captureEntity = entity.getId();
+		captureStart = System.nanoTime();
+		captureUntil = captureStart + ARM_NANOS;
+	}
+
+	/**
+	 * Wird für jeden Sound aufgerufen, bevor er startet (SoundManagerMixin). true = zurückhalten.
+	 * Nur eigene Server-Sounds (nicht im Minecraft-Register), nicht an Entities gebunden, nur kurz nach dem Drop.
+	 */
+	public static boolean interceptSound(SoundInstance sound) {
+		if (replaying || !capturing || sound == null) return false;
+		long now = System.nanoTime();
+		if (now > captureUntil) {
+			finishCapture();
+			return false;
+		}
+		if (sound instanceof EntityBoundSoundInstance) return false;
+		Identifier id = sound.getIdentifier();
+		if (id == null || BuiltInRegistries.SOUND_EVENT.containsKey(id)) return false;
+		if (captured.size() >= MAX_SOUNDS) return false;
+		captured.add(new ServerSound(sound, (now - captureStart) / 1_000_000_000f));
+		LOG.info("Geld-Drop: Server-Sound {} zurückgehalten", id);
+		return true;
+	}
+
+	/** Jeden Tick: abgelaufenes Zurückhalten beenden (nicht erkannte Drops: Sounds sofort nachholen). */
+	public static void tick() {
+		if (capturing && System.nanoTime() > captureUntil) finishCapture();
+	}
+
+	/** Beendet das Zurückhalten. Sounds, die zu keinem Fund gehören, werden jetzt abgespielt. */
+	private static void finishCapture() {
+		if (capturing && !assigned && captured != null && !captured.isEmpty()) {
+			LOG.info("Geld-Drop: {} zurückgehaltene Sounds gehören zu keinem Fund und werden jetzt abgespielt", captured.size());
+			for (ServerSound s : captured) replay(s);
+		}
+		capturing = false;
+		assigned = false;
+		captured = null;
+	}
+
+	/** Spielt einen zurückgehaltenen Sound ab (bei der Enthüllung oder als Nachholen). */
+	public static void replay(ServerSound s) {
+		LOG.info("Geld-Drop: Server-Sound {} wird abgespielt", s.sound().getIdentifier());
+		replaying = true;
+		try {
+			Minecraft.getInstance().getSoundManager().play(s.sound());
+		} finally {
+			replaying = false;
+		}
 	}
 
 	/** Entfernt die Hintergrund-Zeichen (Private Use) und Formatierung, begrenzt die Länge. Leer -> null. */
@@ -154,6 +259,9 @@ public final class MoneyDrops {
 
 	/** Beim Verlassen des Servers vergessen. */
 	public static void reset() {
+		capturing = false;
+		assigned = false;
+		captured = null;
 		TRIGGERED.clear();
 		LOGGED.clear();
 		brokeBlock = false;

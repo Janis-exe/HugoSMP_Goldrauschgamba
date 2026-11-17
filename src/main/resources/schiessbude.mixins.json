@@ -5,6 +5,8 @@
 	"client": [
 		"ChatComponentMixin",
 		"HudTitleMixin",
+		"ItemDisplayMixin",
+		"SoundManagerMixin",
 		"TextDisplayMixin"
 	],
 	"injectors": {

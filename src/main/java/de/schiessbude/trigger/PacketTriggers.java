@@ -76,7 +76,9 @@ public final class PacketTriggers {
 
 		for (PrizeDefinition prize : cfg.prizes) {
 			if (prize.matches(plain)) {
-				fire(new Reward(prize, clean(prize.extractDetail(plain), MAX_DETAIL), source.label), source);
+				// Variante (z. B. "Star-Axt", "Kuh-Spawner") aus der ganzen Nachricht erkennen
+				fire(new Reward(prize, clean(prize.extractDetail(plain), MAX_DETAIL), source.label, null,
+						prize.findVariant(plain), null), source);
 				return;
 			}
 		}
@@ -98,17 +100,18 @@ public final class PacketTriggers {
 		fire(new Reward(prize, detail, Source.PAYLOAD.label), Source.PAYLOAD);
 	}
 
-	static void fire(Reward reward, Source source) {
+	/** false = keine Animation (doppelt, abgeschaltet, Warteschlange voll ...). */
+	static boolean fire(Reward reward, Source source) {
 		long now = System.currentTimeMillis();
 		ModConfig cfg = ModConfig.get();
 		// Gleicher Fund gleichzeitig als Chat UND Titel? Nur einmal abspielen.
 		if (reward.prize().id.equals(lastPrizeId) && source != lastSource && now - lastMillis <= cfg.duplicateWindowMs) {
-			return;
+			return false;
 		}
 		lastPrizeId = reward.prize().id;
 		lastSource = source;
 		lastMillis = now;
-		AnimationManager.enqueue(reward);
+		return AnimationManager.enqueue(reward);
 	}
 
 	/** Entfernt Steuerzeichen und Farbcodes und kürzt auf {@code max} Zeichen. Null/leer bleibt null. */

@@ -32,22 +32,23 @@ public final class AnimationManager {
 	private AnimationManager() {
 	}
 
-	/** Fügt einen Fund hinzu. Läuft gerade eine Animation, wird er hinten angestellt. */
-	public static void enqueue(Reward reward) {
+	/** Fügt einen Fund hinzu. Läuft gerade eine Animation, wird er hinten angestellt. false = keine Animation. */
+	public static boolean enqueue(Reward reward) {
 		ModConfig cfg = ModConfig.get();
-		if (!cfg.enabled) return;
+		if (!cfg.enabled) return false;
 		if (!reward.prize().rarity.atLeast(cfg.minRarity)) {
 			LOG.debug("Fund {} unter Mindest-Seltenheit - keine Animation", reward.prize().id);
-			return;
+			return false;
 		}
 		if (QUEUE.size() >= MAX_QUEUE) {
 			LOG.warn("Schießbude: Warteschlange voll ({} Funde) - Fund '{}' wird ohne Animation übersprungen", MAX_QUEUE, reward.prize().name);
-			return;
+			return false;
 		}
 		LOG.info("Schießbude: Fund '{}' ({}) aus {} in die Warteschlange ({})", reward.prize().name, reward.detail(), reward.source(),
 				reward.animation() != null ? reward.animation().displayName : "Server-Fund");
 		QUEUE.addLast(reward);
 		if (current == null) startNext(false);
+		return true;
 	}
 
 	private static void startNext(boolean chained) {

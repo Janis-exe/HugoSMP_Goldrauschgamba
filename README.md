@@ -10,21 +10,28 @@ Bei jedem Fund spielt der Client eine Gewinn-Animation im Comic-Stil ab. Es gibt
 Goldrausch-Look, alle etwa gleich lang (rund 6 Sekunden Spannung, dann die Enthüllung):
 
 * **Schießstand:** Zielscheiben mit verschiedenen Gewinnen klappen auf bunten Podesten hoch. Eine goldene Pistole in
-  der Mitte schießt eine Scheibe nach der anderen um. Vor dem letzten Schuss zielt sie spannungsvoll erst auf deinen
-  Gewinn, bis nur noch er steht.
+  der Mitte schießt eine Scheibe nach der anderen um, bis nur noch dein Gewinn steht. Der letzte Schuss läuft jedes
+  Mal anders: Die Pistole täuscht erst deinen Gewinn an, zielt lange direkt auf den Köder, pendelt zwischen beiden hin
+  und her oder hat eine Ladehemmung (*klick*), bevor sie trifft.
 * **Slotmaschine (5 Walzen × 3 Reihen):** Eine Hand zieht den Hebel rechts an der Maschine runter, die fünf Walzen
   drehen sich und bleiben von links nach rechts stehen. Drei mögliche Gewinnlinien mit je einem eigenen Symbol laufen
   über die Walzen: gerade Reihen, V-Formen oder Zickzack. Am Anfang ist also noch alles offen. Danach fliegt eine
-  Linie raus, vor der letzten Walze sind noch zwei im Rennen: dein Gewinn und ein Köder. Die letzte Walze kriecht aus,
-  bleibt knapp davor stehen und rutscht dann nach. Am Ende bildet immer genau ein Symbol eine Gewinnfigur über alle
+  Linie raus, vor der letzten Walze sind noch zwei im Rennen: dein Gewinn und ein Köder. Die letzte Walze kriecht aus
+  und hält jedes Mal anders: direkt auf dem Gewinn, eine Reihe davor und rutscht nach, oder eine Reihe zu weit und
+  rutscht zurück. Am Ende bildet immer genau ein Symbol eine Gewinnfigur über alle
   fünf Walzen (zum Beispiel ein V), jedes Symbol der Figur leuchtet golden. Danach regnet es Münzen.
 * **Roulette-Tisch von oben:** Links das Rad, rechts das Wettfeld wie auf einem echten Tisch (Felder abwechselnd rot
   und schwarz, ein Feld pro Gewinn), darunter die Chip-Reihe. Eine Hand nimmt Chips und setzt Stapel auf mehrere
-  Felder, dreht dann das Rad an und wirft die Kugel ein. Die Kugel hüpft erst in ein wertvolleres Fach (dessen Feld
-  blinkt) und springt dann in das Fach mit deinem Gewinn. Dein Feld leuchtet golden auf.
+  Felder, dreht dann das Rad an und wirft die Kugel ein. Das Ende ist jedes Mal anders: Die Kugel fällt direkt ins
+  Gewinnfach und wackelt, bleibt erst im wertvolleren Fach davor liegen (dessen Feld blinkt) und hüpft weiter, oder
+  springt übers Gewinnfach hinweg und kullert zurück. Dein Feld leuchtet golden auf.
 
 Am Ende zoomt die Kamera heran und der Gewinn wird groß enthüllt
-(Seltenheit, Name und Betrag, bei Episch/Legendär mit Konfetti).
+(Seltenheit, Name und Betrag, bei Episch/Legendär mit Konfetti). Auch die Wartezeiten der Spannungspausen sind
+zufällig, so weiß man nie genau, wann es so weit ist.
+
+**Star-Tools und Spawner mit eigenem Bild:** Steht in der Server-Nachricht z. B. „Star-Axt“ oder „Kuh-Spawner“, zeigt
+die Enthüllung genau dieses Bild und den Namen. In den Animationen tauchen die Varianten auch als Köder auf.
 
 ### Die Animationen in Bewegung
 
@@ -77,17 +84,17 @@ Die meisten RATs stecken in **gefälschten Kopien** bekannter Mods. Lade die Mod
 
 1. **Prüfsumme vergleichen:** Im [Actions](../../actions/workflows/build.yml)-Durchlauf steht in der Zusammenfassung
    die SHA-256 der echten .jar (auch in `SHA256SUMS.txt` im Download). Deine Datei prüfen:
-   * Windows (PowerShell): `Get-FileHash goldrausch-schiessbude-1.4.1.jar`
-   * Linux/macOS: `sha256sum goldrausch-schiessbude-1.4.1.jar`
+   * Windows (PowerShell): `Get-FileHash goldrausch-schiessbude-1.5.0.jar`
+   * Linux/macOS: `sha256sum goldrausch-schiessbude-1.5.0.jar`
 
    Stimmt die Zahl nicht exakt überein: **nicht benutzen.**
 2. **Herkunftsnachweis (mit GitHub CLI):**
-   `gh attestation verify goldrausch-schiessbude-1.4.1.jar --repo Janis-exe/hugosmp_goldrauschgamba`
+   `gh attestation verify goldrausch-schiessbude-1.5.0.jar --repo Janis-exe/hugosmp_goldrauschgamba`
    bestätigt, dass die Datei von GitHub aus genau diesem Repository gebaut wurde.
-3. **Inhalt prüfen (mit JDK 25):** `java tools/SicherheitsCheck.java goldrausch-schiessbude-1.4.1.jar`
+3. **Inhalt prüfen (mit JDK 25):** `java tools/SicherheitsCheck.java goldrausch-schiessbude-1.5.0.jar`
 4. **Selbst bauen:** Der Build ist reproduzierbar. `./gradlew build` ergibt aus diesem Code Byte für Byte dieselbe
-   .jar mit derselben SHA-256 wie bei GitHub. Version 1.4.1:
-   `dc15631d788ef3b2da181e77e45f8158081b4cbad7f3ea5e4e92821bd5b6804b`
+   .jar mit derselben SHA-256 wie bei GitHub. Version 1.5.0:
+   `76da251089ecd42f88b908f4cd57c71b47db13742ce2d46995b4f323cecdc80e`
 
 Hinweis: Das schützt vor einem RAT **über diese Mod**. Andere Mods, Programme oder Downloads prüft es nicht.
 
@@ -95,7 +102,7 @@ Hinweis: Das schützt vor einem RAT **über diese Mod**. Andere Mods, Programme 
 
 1. [Fabric Loader](https://fabricmc.net/use/) **0.19.3+** für Minecraft **26.3** installieren.
 2. **Fabric API** für 26.3 (**0.161.0** oder neuer) in den `mods`-Ordner legen.
-3. `goldrausch-schiessbude-1.4.1.jar` in den `mods`-Ordner legen (eine ältere Version vorher löschen).
+3. `goldrausch-schiessbude-1.5.0.jar` in den `mods`-Ordner legen (eine ältere Version vorher löschen).
 4. Optional: **Mod Menu** (21.0.1+). Dann gibt es dort den Knopf „Konfigurieren“.
 
 ## Bedienung
@@ -155,9 +162,16 @@ der Geld-Gewinn mit dem kleinsten passenden Höchstbetrag (`testMoneyMax`), also
 darüber Goldbarren**. Der Betrag erscheint bei der Enthüllung, so wie ihn der Server schreibt. Welche Animation läuft,
 stellst du im Menü unter **Server-Fund** ein. Abschalten: `triggerMoneyDrops` auf `false`.
 
+**Sounds des Servers:** Beim Drop spielt der Server eigene Sounds ab, sobald das Nugget erscheint (noch vor dem
+Betrag), und einen am Ende. Damit sie nichts verraten, hält die Mod genau diese Sounds an und spielt sie erst bei der
+Enthüllung in der Animation ab, statt des eigenen Enthüllungs-Sounds. Angehalten werden nur die eigenen Sounds des
+Servers in der ersten Sekunde nach dem Nugget in deiner Nähe, keine normalen Minecraft-Sounds wie das Abbauen. Wird
+kein Schild erkannt oder läuft keine Animation, kommen die Sounds sofort nach. Abschalten: `moneyDropSoundAtReveal`.
+
 **Zum Testen:** **Pakete loggen** einschalten. Dann steht jedes Schild in deiner Nähe mit seinem lesbaren Text in
 `pakete.log`, z. B. `TEXT-DISPLAY: +66,000 $  (2.5 Blöcke entfernt)`. So sieht man auch, falls große Beträge oder
-andere Drops anders geschrieben werden. Ignorierte Drops stehen im Minecraft-Log (`latest.log`) mit Grund.
+andere Drops anders geschrieben werden. Ignorierte Drops und angehaltene Sounds stehen im Minecraft-Log
+(`latest.log`), z. B. `Geld-Drop: Server-Sound ... zurückgehalten`.
 
 ### Chat, Titel und Actionbar
 Die Mod liest außerdem die Text-Pakete, die der Client vom Server empfängt:
@@ -180,7 +194,8 @@ die Animation. Ein Betrag wie `12.345 $` im Text wird automatisch mit angezeigt.
      wie „Kauf dir Star-Tools!“ und die Funde **anderer Spieler** nicht aus.
    * `ignorePattern`: Nachrichten, die hierauf passen, lösen nie aus.
    * `allowServerPayload`: das eigene Paket `schiessbude:reward` annehmen (`true`/`false`).
-   * `triggerMoneyDrops`, `moneyDropMaxDistance`, `moneyDropNeedsMining`: Geld-Drops (siehe oben).
+   * `triggerMoneyDrops`, `moneyDropMaxDistance`, `moneyDropNeedsMining`, `moneyDropSoundAtReveal`: Geld-Drops
+     (siehe oben).
    * `prizes[].pattern` / `prizes[].detailPattern`: Erkennung des Gewinns bzw. des Betrags/Typs.
 
 Alle Muster sind reguläre Ausdrücke (Java-Regex), `(?i)` = Groß-/Kleinschreibung egal.
@@ -204,11 +219,15 @@ Die 5 Gewinne aus dem Goldrausch-Menü sind voreingestellt:
 |---|---|---|
 | `goldnugget` | Goldnugget | Gewöhnlich (grau) |
 | `goldbarren` | Goldbarren | Ungewöhnlich (grün) |
-| `star_tool` | Star-Tool | Selten (blau) |
-| `spawner` | Spawner | Episch (lila) |
+| `star_tool` | Star-Tool (Hammer, Axt, Eimer, Spitzhacke, Schaufel) | Selten (blau) |
+| `spawner` | Spawner (Kuh, Eisengolem, Spinne, Zombie-Piglin) | Episch (lila) |
 | `goldticket` | Goldticket | Legendär (orange) |
 
 In `config/schiessbude.json` kannst du Gewinne ändern, hinzufügen oder entfernen.
+
+**Varianten:** Star-Tool und Spawner haben unter `variants` je eine Liste mit `name`, `icon` (Bild) und `pattern`
+(woran die Variante in der Server-Nachricht erkannt wird). Heißt ein Star-Tool auf dem Server anders, einfach `name`
+und `pattern` anpassen und im Menü **Konfig neu laden**.
 
 **Bilder (Platzhalter):** Die Bilder liegen in `src/main/resources/assets/schiessbude/textures/prize/`.
 Es gibt drei Wege, sie zu ersetzen:
@@ -224,7 +243,7 @@ Benötigt **JDK 25**.
 ./gradlew build
 ```
 
-Die fertige Mod liegt danach unter `build/libs/goldrausch-schiessbude-1.4.1.jar`. `build` führt dabei automatisch
+Die fertige Mod liegt danach unter `build/libs/goldrausch-schiessbude-1.5.0.jar`. `build` führt dabei automatisch
 den Sicherheits-Check aus (einzeln: `./gradlew sicherheitsCheck`).
 
 * Minecraft mit der Mod starten: `./gradlew runClient`
@@ -253,6 +272,8 @@ src/main/java/de/schiessbude/
 ├─ mixin/ChatComponentMixin.java   Versteckt den Chat während der Animation
 ├─ mixin/HudTitleMixin.java        Liest Titel und Untertitel
 ├─ mixin/TextDisplayMixin.java     Meldet neuen Text von schwebenden Schildern (Geld-Drops)
+├─ mixin/ItemDisplayMixin.java     Erkennt das Nugget, mit dem ein Geld-Drop beginnt
+├─ mixin/SoundManagerMixin.java    Hält die Server-Sounds des Geld-Drops bis zur Enthüllung an
 └─ compat/ModMenuIntegration.java  Mod-Menu-Knopf
 ```
 

@@ -174,8 +174,11 @@ public class SicherheitsCheck {
 		if (!json.contains("\"package\": \"de.schiessbude.mixin\"")) problems.add("Mixins liegen nicht im eigenen Paket");
 		String list = json.replaceAll("(?s).*\"client\"\\s*:\\s*\\[(.*?)].*", "$1").replaceAll("\\s", "");
 		// ChatComponentMixin: Chat während der Animation ausblenden; HudTitleMixin: Titel/Untertitel lesen;
-		// TextDisplayMixin: Geld-Drop-Schilder lesen
-		if (!list.equals("\"ChatComponentMixin\",\"HudTitleMixin\",\"TextDisplayMixin\"")) problems.add("Unerwartete Mixins: " + list);
+		// ItemDisplayMixin + TextDisplayMixin: Geld-Drop (Nugget und Schild) lesen;
+		// SoundManagerMixin: die eigenen Server-Sounds des Geld-Drops bis zur Enthüllung zurückhalten
+		if (!list.equals("\"ChatComponentMixin\",\"HudTitleMixin\",\"ItemDisplayMixin\",\"SoundManagerMixin\",\"TextDisplayMixin\"")) {
+			problems.add("Unerwartete Mixins: " + list);
+		}
 		if (json.contains("\"server\"") || json.contains("\"mixins\"") || json.contains("plugin")) {
 			problems.add("Unerwartete Mixin-Einträge (server/mixins/plugin)");
 		}

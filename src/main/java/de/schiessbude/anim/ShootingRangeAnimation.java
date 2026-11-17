@@ -17,8 +17,8 @@ import java.util.Random;
  * Die Schießbuden-Animation (im Erz-Test: Kupfer).
  * <p>
  * Ablauf: Schießbude erscheint, Zielscheiben mit verschiedenen Gewinnen klappen hoch, die Pistole in der Mitte
- * schießt eine Scheibe nach der anderen um (beim letzten Schuss zielt sie spannungsvoll erst auf deinen Gewinn),
- * bis nur noch dein Gewinn steht. Dann zoomt die Kamera heran und der Gewinn wird groß enthüllt.
+ * schießt eine Scheibe nach der anderen um, bis nur noch dein Gewinn steht. Der letzte Schuss läuft jedes Mal
+ * anders ab (Täuschung, langes Zielen, Pendeln oder Ladehemmung). Dann zoomt die Kamera heran und der Gewinn wird groß enthüllt.
  */
 public final class ShootingRangeAnimation extends CasinoAnimation {
 	// ---- Layout in virtuellen Einheiten (passt zu tools/generate_textures.py) ----
@@ -84,17 +84,19 @@ public final class ShootingRangeAnimation extends CasinoAnimation {
 		for (int k = 0; k < n; k++) {
 			Target target = decoys.get(k);
 			boolean last = k == n - 1;
-			boolean fake = last || (rarity == Rarity.LEGENDARY && k == n - 2);
-			if (fake) {
-				// Spannung: zuerst auf den Gewinn zielen ...
-				float onWinner = time + 0.42f;
+			// Spannung vor dem letzten Schuss, jedes Mal anders; bei Episch/Legendär manchmal schon davor
+			boolean preDrama = !last && k == n - 2 && rnd.nextFloat() < (rarity.atLeast(Rarity.EPIC) ? 0.5f : 0.2f);
+			if (last) {
+				time = lastShotDrama(time, target);
+			} else if (preDrama) {
+				// kurz auf deinen Gewinn zielen, dann doch einen anderen treffen
+				float onWinner = time + 0.38f;
 				key(onWinner, angleOf(winner));
-				float hold = last ? (rarity.atLeast(Rarity.EPIC) ? 1.05f : 0.75f) : 0.5f;
+				float hold = 0.35f + 0.3f * rnd.nextFloat();
 				suspense.add(new float[]{onWinner, onWinner + hold});
 				heartbeat(onWinner, onWinner + hold);
 				time = onWinner + hold;
 				key(time, angleOf(winner));
-				// ... dann blitzschnell zum Köder schwenken
 				time += 0.2f;
 				key(time, angleOf(target));
 				time += 0.1f;
@@ -119,6 +121,65 @@ public final class ShootingRangeAnimation extends CasinoAnimation {
 		key(time + 0.1f, angle);
 		key(time + 0.6f, angleOf(winner));
 		finishTimeline(lastFall, revealSeconds);
+	}
+
+	/**
+	 * Der letzte Schuss, zufällig einer von vier Abläufen. Gibt den Zeitpunkt zurück, an dem die Pistole
+	 * auf das letzte Köder-Ziel zeigt und gleich schießt.
+	 */
+	private float lastShotDrama(float time, Target target) {
+		float base = rarity.atLeast(Rarity.EPIC) ? 1.0f : 0.72f;
+		float hold = base * (0.7f + 0.6f * rnd.nextFloat());
+		float a = angleOf(target), w = angleOf(winner);
+		switch (rnd.nextInt(4)) {
+			case 0 -> {
+				// Täuschung: erst auf deinen Gewinn zielen ... dann blitzschnell zum Köder
+				float on = time + 0.42f;
+				key(on, w);
+				suspense.add(new float[]{on, on + hold});
+				heartbeat(on, on + hold);
+				time = on + hold;
+				key(time, w);
+				time += 0.2f;
+				key(time, a);
+				time += 0.1f;
+			}
+			case 1 -> {
+				// Direkt auf den Köder zielen und lange warten
+				float on = time + 0.4f;
+				key(on, a);
+				suspense.add(new float[]{on, on + hold});
+				heartbeat(on, on + hold);
+				time = on + hold;
+			}
+			case 2 -> {
+				// Pendeln zwischen deinem Gewinn und dem Köder, immer langsamer
+				time += 0.35f;
+				key(time, w);
+				float from = time;
+				int swings = rnd.nextBoolean() ? 3 : 5; // ungerade: der letzte Schwenk endet beim Köder
+				for (int i = 0; i < swings; i++) {
+					time += 0.2f + i * 0.08f;
+					key(time, i % 2 == 0 ? a : w);
+				}
+				time += 0.12f;
+				key(time, a);
+				suspense.add(new float[]{from, time});
+				heartbeat(from, time);
+			}
+			default -> {
+				// Ladehemmung: zielen, *klick* ... nichts ... dann der Schuss
+				float on = time + 0.38f;
+				key(on, a);
+				time = on + 0.2f;
+				key(time, a);
+				cue(time, SoundEvents.DISPENSER_FAIL, 1.3f, 0.9f);
+				suspense.add(new float[]{time, time + hold});
+				heartbeat(time + 0.1f, time + hold);
+				time += hold;
+			}
+		}
+		return time;
 	}
 
 	// ---------------------------------------------------------------------------------------------------------------
@@ -239,7 +300,7 @@ public final class ShootingRangeAnimation extends CasinoAnimation {
 		Gfx.texCentered(g, T_GLOW, 0, boardCy, BOARD * 1.7f, BOARD * 1.7f, 0f, Gfx.argb(tg.prize.rarity.color, glowA));
 		Gfx.texCentered(g, T_RING, 0, boardCy, RING, RING, 0f, Gfx.argb(tg.prize.rarity.color, 1f));
 		Gfx.texCentered(g, T_BOARD, 0, boardCy, BOARD, BOARD, 0f, Gfx.argb(0xFFFFFFFF, 1f));
-		PrizeIcon.of(tg.prize).draw(g, 0, boardCy, ICON, 0f, 1f);
+		icon(tg.prize).draw(g, 0, boardCy, ICON, 0f, 1f);
 		if (whiteFlash > 0f) {
 			Gfx.texCentered(g, T_DISC, 0, boardCy, BOARD, BOARD, 0f, Gfx.argb(0xFFFFFFFF, whiteFlash));
 		}

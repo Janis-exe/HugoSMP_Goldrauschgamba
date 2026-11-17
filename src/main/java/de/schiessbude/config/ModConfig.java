@@ -81,6 +81,8 @@ public class ModConfig {
 	public float moneyDropMaxDistance = 8f;
 	/** Nur auslösen, wenn du in den letzten 5 Sekunden selbst einen Block abgebaut hast. */
 	public boolean moneyDropNeedsMining = true;
+	/** Die Sounds des Servers beim Geld-Drop zurückhalten und erst bei der Enthüllung abspielen (statt der eigenen). */
+	public boolean moneyDropSoundAtReveal = true;
 
 	// ---- Gewinne -----------------------------------------------------------
 	public List<PrizeDefinition> prizes = defaultPrizes();
@@ -112,7 +114,7 @@ public class ModConfig {
 				"(?i)gold\\s?-?barren", money, 250, 2_500_000, List.of()));
 		list.add(new PrizeDefinition("star_tool", "Star-Tool", Rarity.RARE,
 				"schiessbude:textures/prize/star_tool.png", "Ein zufälliges Star-Tool, nur für dich",
-				"(?i)star\\s?-?tool", "(?i)(star\\s?-?(?:spitzhacke|axt|schaufel|schwert|hacke|pickaxe|axe|shovel|sword|hoe))",
+				"(?i)star\\s?-?tool", "(?i)(star\\s?-?(?:hammer|axt|eimer|spitzhacke|schaufel|schwert|hacke|pickaxe|axe|shovel|bucket|sword|hoe))",
 				100, 0, List.of("Star-Spitzhacke", "Star-Axt", "Star-Schaufel")));
 		list.add(new PrizeDefinition("spawner", "Spawner", Rarity.EPIC,
 				"schiessbude:textures/prize/spawner.png", "Kuh, Eisengolem, Spinne oder Zombie-Piglin",
@@ -122,7 +124,32 @@ public class ModConfig {
 				"schiessbude:textures/prize/goldticket.png", "Der Hauptgewinn!",
 				"(?i)gold\\s?-?ticket", "",
 				10, 0, List.of()));
+		for (PrizeDefinition p : list) p.variants = defaultVariants(p.id);
 		return list;
+	}
+
+	/** Voreingestellte Varianten mit eigenen Bildern (Star-Tools und Spawner). */
+	public static List<PrizeVariant> defaultVariants(String prizeId) {
+		String tex = "schiessbude:textures/prize/";
+		List<PrizeVariant> v = new ArrayList<>();
+		switch (prizeId) {
+			case "star_tool" -> {
+				v.add(new PrizeVariant("Star-Hammer", tex + "star_hammer.png", "(?i)hammer"));
+				v.add(new PrizeVariant("Star-Axt", tex + "star_axt.png", "(?i)\\b(axt|axe)\\b"));
+				v.add(new PrizeVariant("Star-Eimer", tex + "star_eimer.png", "(?i)eimer|bucket"));
+				v.add(new PrizeVariant("Star-Spitzhacke", tex + "star_spitzhacke.png", "(?i)spitz\\s?-?hacke|pick\\s?-?axe|picke"));
+				v.add(new PrizeVariant("Star-Schaufel", tex + "star_schaufel.png", "(?i)schaufel|shovel|spaten"));
+			}
+			case "spawner" -> {
+				v.add(new PrizeVariant("Kuh-Spawner", tex + "spawner_kuh.png", "(?i)kuh|\\bcow"));
+				v.add(new PrizeVariant("Eisengolem-Spawner", tex + "spawner_eisengolem.png", "(?i)golem"));
+				v.add(new PrizeVariant("Spinnen-Spawner", tex + "spawner_spinne.png", "(?i)spinne|spider"));
+				v.add(new PrizeVariant("Zombie-Piglin-Spawner", tex + "spawner_zombie_piglin.png", "(?i)piglin"));
+			}
+			default -> {
+			}
+		}
+		return v;
 	}
 
 	public static ModConfig get() {
@@ -185,6 +212,9 @@ public class ModConfig {
 			if (p.name == null) p.name = p.id;
 			if (p.testDetails == null) p.testDetails = new ArrayList<>();
 			if (p.testWeight < 0) p.testWeight = 0;
+			// Ältere Konfigurationen: Varianten (Bilder der Star-Tools und Spawner) ergänzen
+			if (p.variants == null || p.variants.isEmpty()) p.variants = defaultVariants(p.id);
+			p.variants.removeIf(v -> v == null || v.name == null || v.name.isBlank());
 		}
 		if (prizes.isEmpty()) prizes = defaultPrizes();
 	}

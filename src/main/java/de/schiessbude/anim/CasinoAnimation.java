@@ -3,8 +3,11 @@ package de.schiessbude.anim;
 import de.schiessbude.config.AnimationType;
 import de.schiessbude.config.ModConfig;
 import de.schiessbude.config.PrizeDefinition;
+import de.schiessbude.config.PrizeVariant;
 import de.schiessbude.config.Rarity;
 import de.schiessbude.config.Reward;
+import de.schiessbude.config.ServerSound;
+import de.schiessbude.trigger.MoneyDrops;
 import net.minecraft.client.gui.GuiGraphicsExtractor;
 import net.minecraft.core.Holder;
 import net.minecraft.resources.Identifier;
@@ -15,8 +18,10 @@ import org.joml.Matrix3x2fStack;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Comparator;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Locale;
+import java.util.Map;
 import java.util.Random;
 
 /**
@@ -59,12 +64,16 @@ public abstract class CasinoAnimation {
 	protected final float[] sparkleSeed = new float[64];
 	private final List<SoundCue> cues = new ArrayList<>();
 	private final List<Confetti> confetti = new ArrayList<>();
+	/** Köder mit Varianten (Star-Tool, Spawner) zeigen pro Animation eine feste, zufällige Variante. */
+	private final Map<PrizeDefinition, PrizeVariant> decoyVariants = new HashMap<>();
 
 	/** Ab hier steht der Gewinn fest (alle Köder sind weg, die Walzen stehen, die Kugel liegt). */
 	protected float tWin;
 	protected float tZoomStart, tReveal, tFadeOut, tEnd;
 	protected float t;
 	private int nextCue;
+	/** Nächster zurückgehaltener Server-Sound (Geld-Drop), der bei der Enthüllung läuft. */
+	private int nextServerSound;
 
 	protected CasinoAnimation(Reward reward, long seed, boolean chained) {
 		this.reward = reward;
@@ -73,6 +82,17 @@ public abstract class CasinoAnimation {
 		this.chained = chained;
 		this.t0 = chained ? 0.15f : 0.38f;
 		for (int i = 0; i < sparkleSeed.length; i++) sparkleSeed[i] = rnd.nextFloat();
+		// eigener Zufall, damit die Abläufe der Animationen davon unberührt bleiben
+		Random variantRnd = new Random(seed * 31L + 7L);
+		for (PrizeDefinition p : ModConfig.get().prizes) {
+			if (p != reward.prize()) decoyVariants.put(p, p.randomVariant(variantRnd));
+		}
+	}
+
+	/** Bild eines Gewinns in der Szene: dein Gewinn mit seiner Variante (z. B. Star-Axt), Köder mit einer zufälligen. */
+	protected PrizeIcon icon(PrizeDefinition prize) {
+		if (prize == reward.prize()) return PrizeIcon.of(prize, reward.variant());
+		return PrizeIcon.of(prize, decoyVariants.get(prize));
 	}
 
 	/** Erstellt die passende Animation. {@code type} darf nicht {@link AnimationType#RANDOM} sein. */
@@ -102,6 +122,8 @@ public abstract class CasinoAnimation {
 		this.tFadeOut = tReveal + hold;
 		this.tEnd = tFadeOut + 0.45f;
 
+		// Enthüllungs-Sound: wird ersetzt, wenn der Server beim Geld-Drop eigene Sounds geschickt hat
+		revealCues = true;
 		switch (rarity) {
 			case COMMON -> cue(tReveal, SoundEvents.EXPERIENCE_ORB_PICKUP, 0.9f, 0.9f);
 			case UNCOMMON -> cue(tReveal, SoundEvents.PLAYER_LEVELUP, 1.3f, 0.7f);
@@ -114,6 +136,7 @@ public abstract class CasinoAnimation {
 			}
 		}
 		cue(tReveal, SoundEvents.FIREWORK_ROCKET_BLAST, 0.7f, 0.6f);
+		revealCues = false;
 		cues.sort(Comparator.comparingDouble(c -> c.time));
 
 		if (rarity.atLeast(Rarity.EPIC)) {
@@ -154,11 +177,28 @@ public abstract class CasinoAnimation {
 	/** Spielt Sounds ab, deren Zeitpunkt überschritten wurde. */
 	public void advance(float dt, float volume) {
 		t += dt;
+		boolean serverSounds = hasServerSounds();
 		while (nextCue < cues.size() && cues.get(nextCue).time <= t) {
 			SoundCue c = cues.get(nextCue++);
+			if (c.reveal && serverSounds) continue; // statt dessen läuft der Sound vom Server
 			// Sehr alte Sounds (z. B. nach Überspringen) nicht nachholen
 			if (t - c.time < 0.25f) Sounds.play(c.sound, c.pitch, c.volume * volume);
 		}
+		// Zurückgehaltene Server-Sounds (Geld-Drop) in ihrer ursprünglichen Reihenfolge bei der Enthüllung
+		if (serverSounds) {
+			List<ServerSound> list = reward.revealSounds();
+			while (nextServerSound < list.size()) {
+				ServerSound s = list.get(nextServerSound);
+				float at = tReveal + Math.min(s.delay(), 2f);
+				if (t < at) break;
+				nextServerSound++;
+				if (t - at < 0.5f) MoneyDrops.replay(s);
+			}
+		}
+	}
+
+	private boolean hasServerSounds() {
+		return reward.revealSounds() != null && !reward.revealSounds().isEmpty();
 	}
 
 	/** Überspringen: erst direkt zur Enthüllung, beim zweiten Mal ans Ende. */
@@ -327,7 +367,7 @@ public abstract class CasinoAnimation {
 		Gfx.texCentered(g, T_CARD, CARD_X, CARD_Y + bob, 146 * cardP, 146 * cardP, 0f, Gfx.argb(Gfx.lerpColor(rc, 0xFFFFFFFF, 0.72f), 1f));
 		float iconP = Gfx.easeOutBack(Gfx.progress(rt, 0.12f, 0.45f));
 		float wobble = (float) Math.sin(rt * 1.7f) * 0.07f;
-		PrizeIcon.of(reward.prize()).draw(g, CARD_X, CARD_Y + bob, 104 * iconP, wobble, 1f);
+		icon(reward.prize()).draw(g, CARD_X, CARD_Y + bob, 104 * iconP, wobble, 1f);
 
 		// Funkeln
 		int sparkles = 8 + rarity.ordinal() * 4;
@@ -433,14 +473,17 @@ public abstract class CasinoAnimation {
 	}
 
 	protected void cue(float time, SoundEvent sound, float pitch, float volume) {
-		cues.add(new SoundCue(time, sound, pitch, volume));
+		cues.add(new SoundCue(time, sound, pitch, volume, revealCues));
 	}
 
 	protected void cue(float time, Holder<SoundEvent> sound, float pitch, float volume) {
-		cues.add(new SoundCue(time, sound.value(), pitch, volume));
+		cues.add(new SoundCue(time, sound.value(), pitch, volume, revealCues));
 	}
 
-	private record SoundCue(float time, SoundEvent sound, float pitch, float volume) {
+	/** Gerade werden die Enthüllungs-Sounds geplant (die durch Server-Sounds ersetzt werden können). */
+	private boolean revealCues;
+
+	private record SoundCue(float time, SoundEvent sound, float pitch, float volume, boolean reveal) {
 	}
 
 	/** Herausspringende Goldmünzen (Slotmaschine). */

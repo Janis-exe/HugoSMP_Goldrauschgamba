@@ -108,12 +108,16 @@ public final class SlotMachineAnimation extends CasinoAnimation {
 		float start = tPullDown + 0.02f;
 		for (int i = 0; i < REELS - 1; i++) {
 			float stop = start + 1.1f + 0.4f * i;
-			reels[i].plan(start + 0.05f * i, stop - 0.38f, 0.38f, false, 0f);
+			reels[i].plan(start + 0.05f * i, stop - 0.38f, 0.38f, 0, 0f);
 			reels[i].fill(cells[i]);
 		}
-		float hold = rarity == Rarity.LEGENDARY ? 1.05f : rarity.atLeast(Rarity.EPIC) ? 0.85f : 0.65f;
+		// Das Ende ist jedes Mal anders: direkt drauf, eins davor und nachrutschen, oder eins zu weit und zurück
+		float hold = (rarity == Rarity.LEGENDARY ? 1.05f : rarity.atLeast(Rarity.EPIC) ? 0.85f : 0.65f) * (0.7f + 0.6f * rnd.nextFloat());
+		float roll2 = rnd.nextFloat();
+		int nudge = roll2 < 0.34f ? 0 : roll2 < 0.67f ? 1 : -1;
+		float crawl = (nudge == 0 ? 2.1f : 1.6f) + 0.4f * rnd.nextFloat();
 		Reel last = reels[REELS - 1];
-		last.plan(start + 0.2f, reels[REELS - 2].tStop - 0.1f, 1.8f, true, hold);
+		last.plan(start + 0.2f, reels[REELS - 2].tStop - 0.1f, crawl, nudge, hold);
 		last.fillFinal(win, decoy, paths[0][REELS - 1], paths[1][REELS - 1]);
 		for (int r = 0; r < ROWS; r++) cells[REELS - 1][r] = last.symbolAt(last.stopIndex, r);
 
@@ -424,8 +428,9 @@ public final class SlotMachineAnimation extends CasinoAnimation {
 	private void drawAnticipationFrame(GuiGraphicsExtractor g) {
 		Reel last = reels[REELS - 1];
 		float from = reels[REELS - 2].tStop;
-		if (t < from || t > last.nudgeAt + 0.3f) return;
-		float a = Gfx.progress(t, from, 0.2f) * (1f - Gfx.progress(t, last.nudgeAt, 0.3f));
+		float end = last.nudgeAt >= 0f ? last.nudgeAt : last.tStop;
+		if (t < from || t > end + 0.3f) return;
+		float a = Gfx.progress(t, from, 0.2f) * (1f - Gfx.progress(t, end, 0.3f));
 		float pulse = 0.65f + 0.35f * (float) Math.sin(t * 16f);
 		int col = inSuspense() ? 0xFFFF5060 : GOLD;
 		float x = WIN_X + REEL_W * (REELS - 1), y = WIN_Y;
@@ -476,7 +481,7 @@ public final class SlotMachineAnimation extends CasinoAnimation {
 			}
 			float w = SYMBOL * pulse;
 			float h = SYMBOL * c * pulse * (1f + blur * 0.9f);
-			PrizeIcon icon = PrizeIcon.of(prize);
+			PrizeIcon icon = icon(prize);
 			if (blur > 0.05f) {
 				icon.draw(g, x, y - 6f * blur, w, h, 0f, Gfx.argb(shade, 0.3f * blur));
 				icon.draw(g, x, y + 6f * blur, w, h, 0f, Gfx.argb(shade, 0.3f * blur));
@@ -538,8 +543,9 @@ public final class SlotMachineAnimation extends CasinoAnimation {
 		final PrizeDefinition[] strip = new PrizeDefinition[STRIP];
 		final int posStart;
 		float tStart, tDecel, decelDur, v, tStop, restPos;
-		/** Near-Miss: bleibt erst eine Reihe zu früh stehen und rutscht zu diesem Zeitpunkt nach. */
+		/** Knapp daneben: bleibt erst eine Reihe zu früh (+1) bzw. zu weit (-1) stehen und rutscht dann nach. */
 		float nudgeAt = -1f;
+		int nudgeDir;
 		float settled;
 		/** Endposition (Symbol in der mittleren Reihe). */
 		int stopIndex;
@@ -548,7 +554,8 @@ public final class SlotMachineAnimation extends CasinoAnimation {
 			this.posStart = posStart;
 		}
 
-		void plan(float tStart, float tDecel, float decelDur, boolean nearMiss, float hold) {
+		/** @param nudge 0 = bleibt direkt richtig stehen, 1 = eins zu früh und nachrutschen, -1 = eins zu weit und zurück */
+		void plan(float tStart, float tDecel, float decelDur, int nudge, float hold) {
 			this.tStart = tStart;
 			this.tDecel = tDecel;
 			this.decelDur = decelDur;
@@ -558,12 +565,12 @@ public final class SlotMachineAnimation extends CasinoAnimation {
 			v = dist / unit;
 			tStop = tDecel + decelDur;
 			restPos = posStart + dist;
-			if (nearMiss) {
-				stopIndex = posStart + dist + 1;
+			nudgeDir = nudge;
+			stopIndex = posStart + dist + nudge;
+			if (nudge != 0) {
 				nudgeAt = tStop + hold;
 				settled = nudgeAt + 0.3f;
 			} else {
-				stopIndex = posStart + dist;
 				settled = tStop + 0.3f;
 			}
 		}
@@ -609,8 +616,11 @@ public final class SlotMachineAnimation extends CasinoAnimation {
 
 		private boolean finalValid(PrizeDefinition win, PrizeDefinition decoy, int winRow, int decoyRow) {
 			int p = stopIndex;
-			return symbolAt(p, winRow) == win && symbolAt(p, decoyRow) != decoy
-					&& symbolAt(p - 1, winRow) != win && symbolAt(p - 1, decoyRow) != decoy;
+			boolean end = symbolAt(p, winRow) == win && symbolAt(p, decoyRow) != decoy;
+			if (nudgeDir == 0) return end;
+			// beim Halt knapp daneben ist noch keine der beiden Linien voll
+			int hold = (int) restPos;
+			return end && symbolAt(hold, winRow) != win && symbolAt(hold, decoyRow) != decoy;
 		}
 
 		float pos(float time) {
@@ -627,7 +637,7 @@ public final class SlotMachineAnimation extends CasinoAnimation {
 			float d = time - tDecel;
 			if (d < decelDur) return base + v * (d - d * d / (2f * decelDur));
 			if (nudgeAt >= 0f && time >= nudgeAt) {
-				return restPos + Gfx.easeOutBack(Gfx.progress(time, nudgeAt, 0.22f));
+				return restPos + nudgeDir * Gfx.easeOutBack(Gfx.progress(time, nudgeAt, 0.22f));
 			}
 			return restPos + bounce(time - tStop);
 		}

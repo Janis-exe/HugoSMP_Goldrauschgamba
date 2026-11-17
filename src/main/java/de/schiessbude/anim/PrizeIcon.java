@@ -1,6 +1,7 @@
 package de.schiessbude.anim;
 
 import de.schiessbude.config.PrizeDefinition;
+import de.schiessbude.config.PrizeVariant;
 import net.minecraft.client.gui.GuiGraphicsExtractor;
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.resources.Identifier;
@@ -26,7 +27,17 @@ public final class PrizeIcon {
 	}
 
 	public static PrizeIcon of(PrizeDefinition prize) {
-		String key = prize.icon == null ? "" : prize.icon.trim();
+		return of(prize.icon);
+	}
+
+	/** Bild der Variante (z. B. Star-Axt), sonst das Bild des Gewinns. */
+	public static PrizeIcon of(PrizeDefinition prize, PrizeVariant variant) {
+		if (variant != null && variant.icon != null && !variant.icon.isBlank()) return of(variant.icon);
+		return of(prize);
+	}
+
+	public static PrizeIcon of(String icon) {
+		String key = icon == null ? "" : icon.trim();
 		return CACHE.computeIfAbsent(key, PrizeIcon::parse);
 	}
 

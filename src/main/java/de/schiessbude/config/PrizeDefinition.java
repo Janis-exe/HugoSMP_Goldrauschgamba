@@ -34,6 +34,8 @@ public class PrizeDefinition {
 	public long testMoneyMax = 0;
 	/** Test-Modus: zufällige Details (z. B. Spawner-Typen). */
 	public List<String> testDetails = new ArrayList<>();
+	/** Varianten mit eigenem Bild (z. B. die verschiedenen Star-Tools oder Spawner). Leer = keine. */
+	public List<PrizeVariant> variants = new ArrayList<>();
 
 	private transient Pattern compiledPattern;
 	private transient Pattern compiledDetail;
@@ -102,7 +104,23 @@ public class PrizeDefinition {
 		return null;
 	}
 
+	/** Variante, die in der Nachricht erwähnt wird (z. B. "Star-Axt"), oder null. */
+	public PrizeVariant findVariant(String text) {
+		if (text == null || variants == null) return null;
+		for (PrizeVariant v : variants) {
+			if (v != null && v.matches(text)) return v;
+		}
+		return null;
+	}
+
+	/** Zufällige Variante (Test-Modus, Köder in den Animationen) oder null. */
+	public PrizeVariant randomVariant(Random random) {
+		if (variants == null || variants.isEmpty()) return null;
+		return variants.get(random.nextInt(variants.size()));
+	}
+
 	public void invalidate() {
 		compiled = false;
+		if (variants != null) for (PrizeVariant v : variants) if (v != null) v.invalidate();
 	}
 }
