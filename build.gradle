@@ -71,6 +71,12 @@ processResources {
 	}
 }
 
+// Reproduzierbarer Build: gleicher Code ergibt Byte für Byte dieselbe .jar (gleiche SHA-256 wie bei GitHub)
+tasks.withType(AbstractArchiveTask).configureEach {
+	preserveFileTimestamps = false
+	reproducibleFileOrder = true
+}
+
 tasks.withType(JavaCompile).configureEach {
 	it.options.release = 25
 	it.options.encoding = "UTF-8"

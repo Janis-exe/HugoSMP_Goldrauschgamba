@@ -67,6 +67,9 @@ Die meisten RATs stecken in **gefälschten Kopien** bekannter Mods. Lade die Mod
    `gh attestation verify goldrausch-schiessbude-1.1.1.jar --repo Janis-exe/hugosmp_goldrauschgamba`
    bestätigt, dass die Datei von GitHub aus genau diesem Repository gebaut wurde.
 3. **Inhalt prüfen (mit JDK 25):** `java tools/SicherheitsCheck.java goldrausch-schiessbude-1.1.1.jar`
+4. **Selbst bauen:** Der Build ist reproduzierbar. `./gradlew build` ergibt aus diesem Code Byte für Byte dieselbe
+   .jar mit derselben SHA-256 wie bei GitHub. Version 1.1.1:
+   `e9bb35b926ae3beaab5c0ee3c3d0310fbbfc6d007d99a3e182bbf43fa953198e`
 
 Hinweis: Das schützt vor einem RAT **über diese Mod**. Andere Mods, Programme oder Downloads prüft es nicht.
 
