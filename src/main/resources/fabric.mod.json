@@ -4,7 +4,7 @@
 	"version": "${version}",
 	"name": "Goldrausch Schießbude",
 	"description": "Spielt bei jedem Fund eine Gewinn-Animation ab: Schießstand, Slotmaschine oder Roulette.",
-	"authors": ["Claude"],
+	"authors": ["Janis"],
 	"license": "GPL-3.0",
 	"icon": "assets/schiessbude/icon.png",
 	"environment": "client",

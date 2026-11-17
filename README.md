@@ -6,7 +6,7 @@ Jede Änderung am Code baut automatisch eine neue Version.
 
 ![Vorschau](docs/vorschau.png)
 
-Bei jedem Fund spielt der Client eine Gewinn-Animation im Brawl-Stars-Stil ab. Es gibt drei Buden im gleichen
+Bei jedem Fund spielt der Client eine Gewinn-Animation im Comic-Stil ab. Es gibt drei Buden im gleichen
 Goldrausch-Look, alle etwa gleich lang (rund 6 Sekunden Spannung, dann die Enthüllung):
 
 * **Schießstand:** Zielscheiben mit verschiedenen Gewinnen klappen auf bunten Podesten hoch. Eine goldene Pistole in
@@ -24,6 +24,20 @@ Goldrausch-Look, alle etwa gleich lang (rund 6 Sekunden Spannung, dann die Enth�
 
 Am Ende zoomt die Kamera heran und der Gewinn wird groß enthüllt
 (Seltenheit, Name und Betrag, bei Episch/Legendär mit Konfetti).
+
+### Die Animationen in Bewegung
+
+**Schießstand**
+
+![Schießstand](docs/schiessstand.gif)
+
+**Slotmaschine (5 × 3)**
+
+![Slotmaschine](docs/slotmaschine.gif)
+
+**Roulette mit Einsatzfeld**
+
+![Roulette](docs/roulette.gif)
 
 * **Chat und obere Bildschirmmitte sind während der Animation komplett verdeckt.** Chat, Titel, Actionbar
   und Bossleiste werden zusätzlich ausgeblendet, auch wenn man mit T den Chat öffnet.
@@ -62,17 +76,17 @@ Die meisten RATs stecken in **gefälschten Kopien** bekannter Mods. Lade die Mod
 
 1. **Prüfsumme vergleichen:** Im [Actions](../../actions/workflows/build.yml)-Durchlauf steht in der Zusammenfassung
    die SHA-256 der echten .jar (auch in `SHA256SUMS.txt` im Download). Deine Datei prüfen:
-   * Windows (PowerShell): `Get-FileHash goldrausch-schiessbude-1.2.0.jar`
-   * Linux/macOS: `sha256sum goldrausch-schiessbude-1.2.0.jar`
+   * Windows (PowerShell): `Get-FileHash goldrausch-schiessbude-1.2.1.jar`
+   * Linux/macOS: `sha256sum goldrausch-schiessbude-1.2.1.jar`
 
    Stimmt die Zahl nicht exakt überein: **nicht benutzen.**
 2. **Herkunftsnachweis (mit GitHub CLI):**
-   `gh attestation verify goldrausch-schiessbude-1.2.0.jar --repo Janis-exe/hugosmp_goldrauschgamba`
+   `gh attestation verify goldrausch-schiessbude-1.2.1.jar --repo Janis-exe/hugosmp_goldrauschgamba`
    bestätigt, dass die Datei von GitHub aus genau diesem Repository gebaut wurde.
-3. **Inhalt prüfen (mit JDK 25):** `java tools/SicherheitsCheck.java goldrausch-schiessbude-1.2.0.jar`
+3. **Inhalt prüfen (mit JDK 25):** `java tools/SicherheitsCheck.java goldrausch-schiessbude-1.2.1.jar`
 4. **Selbst bauen:** Der Build ist reproduzierbar. `./gradlew build` ergibt aus diesem Code Byte für Byte dieselbe
-   .jar mit derselben SHA-256 wie bei GitHub. Version 1.2.0:
-   `30d0f8cbf43c8ccd1943361db0b7f8f7abad01fe4d43f80575729ca3e8f71fc8`
+   .jar mit derselben SHA-256 wie bei GitHub. Version 1.2.1:
+   `a3f3d1d39c9507f85834fbfe1affe36a66367c1880fbf4d87e3ffb8408c6b87f`
 
 Hinweis: Das schützt vor einem RAT **über diese Mod**. Andere Mods, Programme oder Downloads prüft es nicht.
 
@@ -80,7 +94,7 @@ Hinweis: Das schützt vor einem RAT **über diese Mod**. Andere Mods, Programme 
 
 1. [Fabric Loader](https://fabricmc.net/use/) **0.20.1+** für Minecraft **26.3** installieren.
 2. **Fabric API** für 26.3 in den `mods`-Ordner legen.
-3. `goldrausch-schiessbude-1.2.0.jar` in den `mods`-Ordner legen (eine ältere Version vorher löschen).
+3. `goldrausch-schiessbude-1.2.1.jar` in den `mods`-Ordner legen (eine ältere Version vorher löschen).
 4. Optional: **Mod Menu** (21.0.1+). Dann gibt es dort den Knopf „Konfigurieren“.
 
 ## Bedienung
@@ -185,7 +199,7 @@ Benötigt **JDK 25**.
 ./gradlew build
 ```
 
-Die fertige Mod liegt danach unter `build/libs/goldrausch-schiessbude-1.2.0.jar`. `build` führt dabei automatisch
+Die fertige Mod liegt danach unter `build/libs/goldrausch-schiessbude-1.2.1.jar`. `build` führt dabei automatisch
 den Sicherheits-Check aus (einzeln: `./gradlew sicherheitsCheck`).
 
 * Minecraft mit der Mod starten: `./gradlew runClient`
