@@ -601,8 +601,8 @@ def make_prizes():
 # Slotmaschine (Kohle)
 # ---------------------------------------------------------------------------
 # Lage der Maschine in der Szene (identisch zu SlotMachineAnimation.java):
-# Sprite oben links bei (160, 48), Größe 320 x 292.
-# Walzenfenster im Sprite: x 45..275, y 76..202  ->  in der Szene x 205..435, y 124..250
+# Sprite oben links bei (110, 44), Größe 420 x 300.
+# Walzenfenster (5 Walzen x 3 Reihen) im Sprite: x 55..365, y 78..228  ->  in der Szene x 165..475, y 122..272
 RED = (222, 58, 92, 255)
 RED_D = (178, 36, 76, 255)
 RED_L = (248, 122, 152, 255)
@@ -703,7 +703,7 @@ def make_slot_background():
 
     # Schatten unter der Maschine
     def shadow(l):
-        l.ellipse(320, 340, 160, 14, (40, 8, 40, 150))
+        l.ellipse(320, 342, 200, 14, (40, 8, 40, 150))
     layer(c, shadow, blur=4)
 
     draw_curtain(c, False)
@@ -714,83 +714,84 @@ def make_slot_background():
 
 
 def make_slot_machine():
-    W, H = 320, 292
+    W, H = 420, 300
     c = Canvas(W, H, px=3)
-    # Hebel-Gehäuse rechts
-    c.rect(290, 150, 318, 206, (150, 158, 196, 255), OUTLINE, 2.4, radius=6)
-    c.rect(295, 155, 301, 201, (204, 212, 240, 255), radius=2)
-    c.ellipse(307, 178, 8.5, 8.5, (70, 74, 110, 255), OUTLINE, 2)
-    c.ellipse(307, 178, 3.5, 3.5, (40, 40, 60, 255))
+    # Hebel-Gehäuse rechts (Drehpunkt bei 404, 180 -> Szene 514, 224)
+    c.rect(386, 152, 416, 208, (150, 158, 196, 255), OUTLINE, 2.4, radius=6)
+    c.rect(391, 157, 397, 203, (204, 212, 240, 255), radius=2)
+    c.ellipse(404, 180, 8.5, 8.5, (70, 74, 110, 255), OUTLINE, 2)
+    c.ellipse(404, 180, 3.5, 3.5, (40, 40, 60, 255))
     # Sockel
-    c.rect(26, 272, 294, 290, PURPLE_D, OUTLINE, 2.6, radius=5)
-    c.rect(32, 276, 288, 280, PURPLE, radius=2)
+    c.rect(36, 280, 384, 298, PURPLE_D, OUTLINE, 2.6, radius=5)
+    c.rect(42, 284, 378, 288, PURPLE, radius=2)
     # Gehäuse
-    c.rect(20, 60, 300, 280, RED, OUTLINE, 3, radius=14)
-    c.rect(268, 68, 294, 272, RED_D, radius=10)
-    c.rect(27, 72, 35, 266, RED_L, radius=4)
+    c.rect(25, 60, 395, 288, RED, OUTLINE, 3, radius=14)
+    c.rect(363, 68, 389, 280, RED_D, radius=10)
+    c.rect(32, 72, 40, 274, RED_L, radius=4)
     # Krone
-    c.d.pieslice(c.box(44, 10, 276, 118), 180, 360, fill=PURPLE, outline=OUTLINE, width=round(3 * c.k))
-    c.d.arc(c.box(52, 18, 268, 110), 180, 360, fill=GOLD, width=round(6 * c.k))
-    c.d.arc(c.box(49, 15, 271, 113), 180, 360, fill=OUTLINE, width=round(1.2 * c.k))
-    c.d.pieslice(c.box(64, 30, 256, 98), 180, 360, fill=PURPLE_D, outline=OUTLINE, width=round(1.6 * c.k))
-    c.rect(38, 58, 282, 69, GOLD, OUTLINE, 2.4, radius=3)
-    c.line([(44, 61.5), (276, 61.5)], GOLD_LIGHT, 1.4)
+    c.d.pieslice(c.box(70, 8, 350, 122), 180, 360, fill=PURPLE, outline=OUTLINE, width=round(3 * c.k))
+    c.d.arc(c.box(78, 16, 342, 114), 180, 360, fill=GOLD, width=round(6 * c.k))
+    c.d.arc(c.box(75, 13, 345, 117), 180, 360, fill=OUTLINE, width=round(1.2 * c.k))
+    c.d.pieslice(c.box(92, 30, 328, 100), 180, 360, fill=PURPLE_D, outline=OUTLINE, width=round(1.6 * c.k))
+    c.rect(46, 58, 374, 69, GOLD, OUTLINE, 2.4, radius=3)
+    c.line([(52, 61.5), (368, 61.5)], GOLD_LIGHT, 1.4)
     # Fassungen der Kronen-Lichter (Positionen auch in SlotMachineAnimation.java)
-    for i in range(9):
-        a = math.radians(196 + i * 148 / 8)
-        c.ellipse(160 + 108 * math.cos(a), 64 + 46 * math.sin(a), 3.4, 3.4, (60, 40, 70, 255))
-    # Walzenfenster mit Goldrahmen
-    c.rect(36, 69, 284, 210, GOLD, OUTLINE, 3, radius=9)
-    c.rect(40, 73, 280, 206, GOLD_DARK, radius=7)
-    c.rect(45, 76, 275, 202, (255, 248, 232, 255), OUTLINE, 2.4)
-    for i in range(3):
-        x0 = 45 + i * 230 / 3
-        c.rect(x0 + 4, 80, x0 + 230 / 3 - 4, 198, (255, 252, 242, 255), radius=4)
-    # Gewinnlinien-Pfeile (Linie liegt bei y = 139 im Sprite)
-    c.poly([(30, 130), (44, 139), (30, 148)], (240, 60, 70, 255), OUTLINE, 1.8)
-    c.poly([(290, 130), (276, 139), (290, 148)], (240, 60, 70, 255), OUTLINE, 1.8)
-    # Bedienfeld
-    c.rect(40, 216, 280, 248, PURPLE_D, OUTLINE, 2.4, radius=6)
-    for x, col in [(78, (240, 70, 80, 255)), (114, (255, 200, 60, 255)), (150, (90, 220, 110, 255))]:
-        c.ellipse(x, 233, 11, 8, (40, 18, 52, 255))
-        c.ellipse(x, 231, 10, 7, col, OUTLINE, 2)
-        c.ellipse(x - 3, 229, 3, 1.8, (255, 255, 255, 255))
-    c.rect(186, 222, 268, 242, (34, 16, 48, 255), GOLD, 1.8, radius=4)
+    for i in range(11):
+        a = math.radians(196 + i * 148 / 10)
+        c.ellipse(210 + 130 * math.cos(a), 65 + 48 * math.sin(a), 3.4, 3.4, (60, 40, 70, 255))
+    # Walzenfenster mit Goldrahmen: 5 Walzen à 62 breit, 3 Reihen à 50 hoch
+    c.rect(46, 69, 374, 236, GOLD, OUTLINE, 3, radius=9)
+    c.rect(50, 73, 370, 232, GOLD_DARK, radius=7)
+    c.rect(55, 78, 365, 228, (255, 248, 232, 255), OUTLINE, 2.4)
     for i in range(5):
-        c.rect(193 + i * 14.5, 227, 203 + i * 14.5, 237, (120, 230, 140, 255) if i < 3 else (60, 110, 80, 255), radius=1.5)
+        x0 = 55 + i * 62
+        c.rect(x0 + 3, 81, x0 + 59, 225, (255, 252, 242, 255), radius=4)
+    # Gewinnlinien-Pfeile, je einer pro Reihe (Reihen-Mitte bei y = 103, 153, 203 im Sprite)
+    for y in (103, 153, 203):
+        c.poly([(31, y - 8), (49, y), (31, y + 8)], (240, 60, 70, 255), OUTLINE, 1.8)
+        c.poly([(389, y - 8), (371, y), (389, y + 8)], (240, 60, 70, 255), OUTLINE, 1.8)
+    # Bedienfeld
+    c.rect(46, 240, 374, 262, PURPLE_D, OUTLINE, 2.4, radius=6)
+    for x, col in [(82, (240, 70, 80, 255)), (112, (255, 200, 60, 255)), (142, (90, 220, 110, 255))]:
+        c.ellipse(x, 252, 9, 6.5, (40, 18, 52, 255))
+        c.ellipse(x, 250.5, 8, 5.5, col, OUTLINE, 1.8)
+        c.ellipse(x - 2.5, 249, 2.4, 1.4, (255, 255, 255, 255))
+    c.rect(272, 244, 362, 258, (34, 16, 48, 255), GOLD, 1.6, radius=3)
+    for i in range(5):
+        c.rect(278 + i * 16.5, 247.5, 288 + i * 16.5, 254.5, (120, 230, 140, 255) if i < 3 else (60, 110, 80, 255), radius=1.5)
     # Münzschale
-    c.rect(70, 252, 250, 276, GOLD, OUTLINE, 2.6, radius=8)
-    c.rect(78, 256, 242, 272, (40, 18, 52, 255), radius=6)
-    c.rect(82, 266, 238, 271, (72, 38, 84, 255), radius=3)
+    c.rect(110, 264, 310, 286, GOLD, OUTLINE, 2.6, radius=8)
+    c.rect(118, 268, 302, 282, (40, 18, 52, 255), radius=6)
+    c.rect(122, 277, 298, 281, (72, 38, 84, 255), radius=3)
     # Nieten
-    for x in (30, 290):
-        for y in (88, 262):
+    for x in (32, 388):
+        for y in (88, 270):
             c.ellipse(x, y, 2.4, 2.4, GOLD, OUTLINE, 1)
 
     def shine(l):
-        l.d.arc(l.box(58, 24, 262, 104), 200, 250, fill=(255, 255, 255, 120), width=round(3 * l.k))
-        l.rect(24, 64, 34, 150, (255, 255, 255, 40), radius=4)
+        l.d.arc(l.box(86, 22, 334, 108), 200, 250, fill=(255, 255, 255, 120), width=round(3 * l.k))
+        l.rect(29, 64, 39, 150, (255, 255, 255, 40), radius=4)
     layer(c, shine)
     save(c.done(), GUI, "slot_machine.png")
 
 
 def make_slot_glass():
-    """Glas über den Walzen: Rundungs-Schatten oben/unten, Trennstege, Spiegelung."""
-    W, H = 230, 126
+    """Glas über den Walzen: leichter Rundungs-Schatten oben/unten, Trennstege, Spiegelung."""
+    W, H = 310, 150
     c = Canvas(W, H, px=3)
     hk = round(H * c.k)
     for y in range(hk):
         t = y / (hk - 1)
-        a = 225 * max(0.0, 1 - t / 0.34) ** 1.7 + 225 * max(0.0, (t - 0.66) / 0.34) ** 1.7
+        a = 205 * max(0.0, 1 - t / 0.16) ** 1.6 + 205 * max(0.0, (t - 0.84) / 0.16) ** 1.6
         if a > 0.5:
             c.d.line([(0, y), (W * c.k, y)], fill=(35, 18, 48, round(a)))
 
     def glare(l):
-        l.poly([(16, 0), (58, 0), (26, 126), (-16, 126)], (255, 255, 255, 34))
-        l.poly([(66, 0), (76, 0), (44, 126), (34, 126)], (255, 255, 255, 26))
+        l.poly([(18, 0), (66, 0), (30, 150), (-18, 150)], (255, 255, 255, 30))
+        l.poly([(76, 0), (87, 0), (51, 150), (40, 150)], (255, 255, 255, 22))
     layer(c, glare)
-    for i in (1, 2):
-        x = i * W / 3
+    for i in range(1, 5):
+        x = i * W / 5
         c.rect(x - 2.2, 0, x + 2.2, H, OUTLINE)
         c.rect(x - 0.6, 0, x + 0.6, H, (90, 60, 100, 255))
     c.rect(0, 0, W, H, None, OUTLINE, 2.6)
@@ -856,12 +857,12 @@ def make_hand():
 # ---------------------------------------------------------------------------
 # Roulette (Gold, Eisen, Redstone, Diamant, Lapis)
 # ---------------------------------------------------------------------------
-# Rad-Mitte in der Szene (WCX, WCY) = (320, 194), Neigung SQ = 0.56, Rad-Vergrößerung K = 1.22,
-# Einsatz-Feld bei (540, 302) (identisch zu RouletteAnimation.java)
+# Rad-Mitte in der Szene (WCX, WCY) = (196, 200), Neigung SQ = 0.56, Rad-Vergrößerung K = 1.0.
+# Rechts daneben liegt das Einsatzfeld, das im Spiel gezeichnet wird (identisch zu RouletteAnimation.java)
 SQ = 0.56
-WHEEL_K = 1.22
-WCY = 194
-CHIP_POS = (540, 302)
+WHEEL_K = 1.0
+WCX = 196
+WCY = 200
 FELT = (30, 136, 98, 255)
 
 
@@ -909,11 +910,8 @@ def make_roulette_background():
     c.poly([(96, 116), (544, 116), (648, 372), (-8, 372)], None, (232, 200, 112, 255), 1.6)
     # Schatten unter dem Rad
     def wheel_shadow(l):
-        l.ellipse(322, WCY + 16, 162 * WHEEL_K, 96 * WHEEL_K, (6, 30, 20, 150))
+        l.ellipse(WCX + 2, WCY + 16, 162 * WHEEL_K, 96 * WHEEL_K, (6, 30, 20, 150))
     layer(c, wheel_shadow, blur=8)
-    # Einsatz-Feld (hier landen die Chips)
-    c.ellipse(CHIP_POS[0], CHIP_POS[1], 32, 18, None, (232, 200, 112, 255), 1.8)
-    c.ellipse(CHIP_POS[0], CHIP_POS[1], 26, 14.5, None, (232, 200, 112, 255), 1.0)
 
     # Lampen
     for x in (150, 490):
@@ -1069,19 +1067,6 @@ def make_chip():
     save(c.done(), GUI, "chip.png")
 
 
-def make_rake():
-    """Croupier-Schieber: Kopf links (Mitte bei 10, 30), Stiel nach rechts."""
-    W, H = 330, 60
-    c = Canvas(W, H, px=3)
-    c.rect(22, 26.5, 336, 33.5, (176, 112, 64, 255), OUTLINE, 2.2, radius=3)
-    c.line([(26, 28.6), (330, 28.6)], (214, 156, 100, 255), 1.4)
-    c.rect(12, 23, 28, 37, GOLD, OUTLINE, 2, radius=3)
-    c.line([(15, 25.5), (25, 25.5)], GOLD_LIGHT, 1.2)
-    c.rect(4, 3, 17, 57, (120, 64, 36, 255), OUTLINE, 2.4, radius=4)
-    c.line([(8, 7), (8, 53)], (160, 96, 58, 255), 1.6)
-    save(c.done(), GUI, "rake.png")
-
-
 if __name__ == "__main__":
     make_background()
     make_target_board()
@@ -1110,4 +1095,3 @@ if __name__ == "__main__":
     make_roulette_turret()
     make_ball()
     make_chip()
-    make_rake()

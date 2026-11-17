@@ -197,8 +197,11 @@ public abstract class CasinoAnimation {
 		// ---- Szene (mit Kamera-Zoom und Wackeln) ----
 		float zoomP = Gfx.easeInOutCubic(Gfx.progress(t, tZoomStart, tReveal - tZoomStart));
 		float zoom = Gfx.lerp(1f, focusZoom(), zoomP);
+		// Kamera bleibt immer innerhalb der Szene (kein leerer Rand beim Heranzoomen)
 		float fx = Gfx.lerp(VW / 2f, focusX(), zoomP);
 		float fy = Gfx.lerp(VH / 2f, focusY(), zoomP);
+		fx = Math.clamp(fx, VW / (2f * zoom), VW - VW / (2f * zoom));
+		fy = Math.clamp(fy, VH / (2f * zoom), VH - VH / (2f * zoom));
 		float slide = chained ? 0f : (1f - Gfx.easeOutCubic(Gfx.progress(t, 0f, 0.5f))) * 40f;
 		float shake = shakeAmount();
 		float sx = (float) Math.sin(t * 93.0) * shake;
