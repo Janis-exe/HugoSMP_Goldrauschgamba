@@ -36,6 +36,8 @@ die Varianten auch als Köder auf.
 
 ### Die Animationen in Bewegung
 
+Jede Runde läuft anders aus. Die GIFs zeigen je ein Beispiel (aufgenommen mit Version 1.6.1).
+
 **Schießstand**
 
 ![Schießstand](docs/schiessstand.gif)
