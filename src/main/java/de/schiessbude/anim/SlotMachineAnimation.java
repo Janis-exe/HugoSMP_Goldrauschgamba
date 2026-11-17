@@ -16,10 +16,11 @@ import java.util.List;
  * Die Slotmaschinen-Animation (im Erz-Test: Kohle): 5 Walzen x 3 Reihen.
  * <p>
  * Ablauf: Eine Hand zieht den Hebel rechts an der Maschine runter, die fünf Walzen drehen sich und bleiben von links
- * nach rechts stehen. Jede der drei Reihen ist eine mögliche Gewinnlinie mit einem eigenen Symbol. Nach der ersten
- * Walze ist also noch alles offen; danach fliegt eine Reihe raus, und vor der letzten Walze sind noch zwei übrig:
- * dein Gewinn und ein Köder. Die letzte Walze kriecht aus, bleibt knapp davor stehen und rutscht dann nach.
- * Am Ende steht immer nur eine Form fünfmal in einer Reihe: dein Gewinn.
+ * nach rechts stehen. Es laufen drei mögliche Gewinnlinien mit je einem eigenen Symbol über die Walzen (gerade Reihen,
+ * V-Form, Zickzack ...). Nach der ersten Walze ist also noch alles offen; danach fliegt eine Linie raus, und vor der
+ * letzten Walze sind noch zwei übrig: dein Gewinn und ein Köder. Die letzte Walze kriecht aus, bleibt knapp davor
+ * stehen und rutscht dann nach. Am Ende bildet immer genau ein Symbol eine Gewinnfigur über alle fünf Walzen
+ * (z. B. ein V), jedes Symbol der Figur bekommt einen leuchtenden Rahmen.
  */
 public final class SlotMachineAnimation extends CasinoAnimation {
 	// ---- Layout in virtuellen Einheiten (passt zu tools/generate_textures.py) ----
@@ -43,11 +44,22 @@ public final class SlotMachineAnimation extends CasinoAnimation {
 	static final Identifier T_KNOB = Gfx.id("textures/gui/lever_knob.png");
 
 	private final Reel[] reels = new Reel[REELS];
-	/** Symbol, das in der jeweiligen Reihe eine Gewinnlinie bilden würde. */
-	private final PrizeDefinition[] lineSymbol = new PrizeDefinition[ROWS];
+	/** Symbol der drei möglichen Gewinnlinien (0 = dein Gewinn, 1 = Köder, 2 = fliegt früh raus). */
+	private final PrizeDefinition[] lineSymbol = new PrizeDefinition[3];
 	/** Endstand: cells[walze][reihe]. */
 	private final PrizeDefinition[][] cells = new PrizeDefinition[REELS][ROWS];
-	private final int winRow, decoyRow;
+	/** Verlauf der drei Linien: Reihe pro Walze. Linie 0 = Gewinn, 1 = Köder, 2 = fliegt früh raus. */
+	private final int[][] paths = new int[3][];
+
+	/** Mögliche Gewinnfiguren (Reihe pro Walze), wie bei echten 5x3-Automaten. */
+	private static final int[][] SHAPES = {
+			{0, 1, 2, 1, 0}, {2, 1, 0, 1, 2}, // V und umgedrehtes V
+			{0, 1, 0, 1, 0}, {2, 1, 2, 1, 2}, {1, 0, 1, 2, 1}, {1, 2, 1, 0, 1}, // Zickzack
+			{0, 0, 1, 2, 2}, {2, 2, 1, 0, 0}, {1, 0, 0, 0, 1}, {1, 2, 2, 2, 1}, {0, 1, 1, 1, 0}, {2, 1, 1, 1, 2},
+			{0, 0, 0, 0, 0}, {1, 1, 1, 1, 1}, {2, 2, 2, 2, 2} // gerade Reihen (nur für Köder)
+	};
+	/** Die ersten so vielen Figuren können die Gewinnfigur sein (keine geraden Reihen). */
+	private static final int WIN_SHAPES = 12;
 	private final float tPullStart, tPullDown, tLeverBack;
 	private final List<Coin> coins = new ArrayList<>();
 
@@ -68,20 +80,27 @@ public final class SlotMachineAnimation extends CasinoAnimation {
 		cue(tLeverBack + 0.12f, SoundEvents.IRON_DOOR_CLOSE, 1.9f, 0.2f);
 
 		// --- Welche Reihe gewinnt, welche ist der Köder, wann fliegt die dritte raus? ---
-		winRow = rnd.nextInt(ROWS);
-		decoyRow = (winRow + 1 + rnd.nextInt(ROWS - 1)) % ROWS;
-		int thirdRow = ROWS - winRow - decoyRow;
 		PrizeDefinition decoy = pickDecoy(win);
 		PrizeDefinition third = anyExcept(win, decoy);
-		lineSymbol[winRow] = win;
-		lineSymbol[decoyRow] = decoy;
-		lineSymbol[thirdRow] = third;
+		lineSymbol[0] = win;
+		lineSymbol[1] = decoy;
+		lineSymbol[2] = third;
+		// Gewinnfigur: meistens ein V (wie bei großen Automaten), sonst eine andere Figur
+		paths[0] = rnd.nextFloat() < 0.55f ? SHAPES[rnd.nextInt(2)] : SHAPES[rnd.nextInt(WIN_SHAPES)];
+		// Köder: darf die Gewinnlinie auf den ersten vier Walzen nicht kreuzen
+		paths[1] = pickShape(REELS - 1, paths[0]);
 		float roll = rnd.nextFloat();
 		int thirdOut = roll < 0.3f ? 1 : roll < 0.7f ? 2 : 3;
+		while (thirdOut > 1 && pickShape(thirdOut, paths[0], paths[1]) == null) thirdOut--;
+		paths[2] = pickShape(thirdOut, paths[0], paths[1]);
+		if (paths[1] == null) paths[1] = SHAPES[SHAPES.length - 1];
+		if (paths[2] == null) paths[2] = SHAPES[SHAPES.length - 2];
 		for (int c = 0; c < REELS - 1; c++) {
-			cells[c][winRow] = win;
-			cells[c][decoyRow] = decoy;
-			cells[c][thirdRow] = c < thirdOut ? third : anyExcept(third, null);
+			cells[c][paths[0][c]] = win;
+			cells[c][paths[1][c]] = decoy;
+			int r3 = paths[2][c];
+			if (cells[c][r3] == null) cells[c][r3] = c < thirdOut ? third : anyExcept(third, win);
+			for (int r = 0; r < ROWS; r++) if (cells[c][r] == null) cells[c][r] = anyExcept(win, decoy);
 		}
 
 		// --- Walzen: vier schnelle Stopps, dann die letzte mit langem Auslaufen ---
@@ -95,7 +114,7 @@ public final class SlotMachineAnimation extends CasinoAnimation {
 		float hold = rarity == Rarity.LEGENDARY ? 1.05f : rarity.atLeast(Rarity.EPIC) ? 0.85f : 0.65f;
 		Reel last = reels[REELS - 1];
 		last.plan(start + 0.2f, reels[REELS - 2].tStop - 0.1f, 1.8f, true, hold);
-		last.fillFinal(win, decoy);
+		last.fillFinal(win, decoy, paths[0][REELS - 1], paths[1][REELS - 1]);
 		for (int r = 0; r < ROWS; r++) cells[REELS - 1][r] = last.symbolAt(last.stopIndex, r);
 
 		scheduleReelSounds();
@@ -135,6 +154,20 @@ public final class SlotMachineAnimation extends CasinoAnimation {
 		return all.get(rnd.nextInt(all.size()));
 	}
 
+	/** Zufällige Figur, die auf den ersten {@code walzen} Walzen keine der anderen Linien berührt (oder null). */
+	private int[] pickShape(int walzen, int[]... others) {
+		List<int[]> ok = new ArrayList<>();
+		for (int[] shape : SHAPES) {
+			boolean free = true;
+			for (int[] o : others) {
+				if (o == shape) free = false;
+				for (int c = 0; c < walzen && free; c++) if (o[c] == shape[c]) free = false;
+			}
+			if (free) ok.add(shape);
+		}
+		return ok.isEmpty() ? null : ok.get(rnd.nextInt(ok.size()));
+	}
+
 	/** Ab wann eine Walze als "steht" zählt (bei der letzten: nach dem Nachrutschen). */
 	private float landed(int c) {
 		Reel r = reels[c];
@@ -153,8 +186,8 @@ public final class SlotMachineAnimation extends CasinoAnimation {
 				cue(r.nudgeAt, SoundEvents.STONE_BUTTON_CLICK_ON, 1.3f, 0.7f);
 			}
 			int alive = 0, died = 0;
-			for (int row = 0; row < ROWS; row++) {
-				int[] s = lineState(row, landed(c) + 0.001f);
+			for (int line = 0; line < 3; line++) {
+				int[] s = lineState(line, landed(c) + 0.001f);
 				if (s[1] < 0 && s[0] == c + 1) alive++;
 				if (s[1] == c) died++;
 			}
@@ -198,11 +231,11 @@ public final class SlotMachineAnimation extends CasinoAnimation {
 	 * Zustand einer Gewinnlinie zur Zeit {@code time}: {Anzahl Walzen von links mit dem Linien-Symbol,
 	 * Walze, an der die Linie gerissen ist (oder -1)}.
 	 */
-	private int[] lineState(int row, float time) {
+	private int[] lineState(int line, float time) {
 		int matched = 0;
 		for (int c = 0; c < REELS; c++) {
 			if (time < landed(c)) break;
-			if (cells[c][row] != lineSymbol[row]) return new int[]{matched, c};
+			if (cells[c][paths[line][c]] != lineSymbol[line]) return new int[]{matched, c};
 			matched++;
 		}
 		return new int[]{matched, -1};
@@ -225,7 +258,7 @@ public final class SlotMachineAnimation extends CasinoAnimation {
 
 	@Override
 	protected float focusY() {
-		return rowY(winRow);
+		return MID_Y;
 	}
 
 	@Override
@@ -327,14 +360,14 @@ public final class SlotMachineAnimation extends CasinoAnimation {
 	}
 
 	/**
-	 * Die noch möglichen Gewinnlinien: farbiges Band hinter den passenden Symbolen ({@code front = false})
-	 * bzw. Rahmen um sie ({@code front = true}). Eine gerissene Linie blendet kurz aus.
+	 * Die noch möglichen Gewinnlinien: Leuchten hinter den passenden Symbolen ({@code front = false}) bzw. Rahmen um sie
+	 * und eine Verbindungslinie ({@code front = true}). Eine gerissene Linie blendet kurz aus.
 	 */
 	private void drawLines(GuiGraphicsExtractor g, boolean front) {
 		boolean won = t >= tWin;
-		for (int row = 0; row < ROWS; row++) {
-			if (won && row != winRow) continue;
-			int[] s = lineState(row, t);
+		for (int line = 2; line >= 0; line--) {
+			if (won && line != 0) continue;
+			int[] s = lineState(line, t);
 			int matched = s[0];
 			if (matched == 0) continue;
 			float a;
@@ -342,38 +375,49 @@ public final class SlotMachineAnimation extends CasinoAnimation {
 				a = 1f - Gfx.progress(t, landed(s[1]), 0.3f);
 				if (a <= 0f) continue;
 			} else {
-				a = 0.75f + 0.25f * (float) Math.sin(t * 7f + row * 2f);
+				a = 0.75f + 0.25f * (float) Math.sin(t * 7f + line * 2f);
 			}
-			int col = lineSymbol[row].rarity.color;
-			float y = rowY(row);
-			float x0 = WIN_X + 3f, x1 = WIN_X + matched * REEL_W - 3f;
 			if (won) a = Math.max(a, Gfx.progress(t, tWin, 0.25f));
+			int col = lineSymbol[line].rarity.color;
+			int[] path = paths[line];
 			if (!front) {
-				Gfx.rect(g, x0, y - 22f, x1 - x0, 44f, Gfx.argb(col, (won ? 0.4f : 0.22f) * a));
+				// Verbindungslinie hinter den Symbolen
+				int lineCol = Gfx.argb(Gfx.lerpColor(won ? GOLD : col, 0xFFFFFFFF, 0.2f), 0.7f * a);
+				for (int c = 0; c + 1 < matched; c++) {
+					Gfx.line(g, reelX(c), rowY(path[c]), reelX(c + 1), rowY(path[c + 1]), won ? 4f : 2.5f, lineCol);
+				}
 				for (int c = 0; c < matched; c++) {
 					float pulse = won ? 1f + 0.12f * (float) Math.sin((t - tWin) * 8f + c) : 1f;
-					Gfx.texCentered(g, T_GLOW, reelX(c), y, 70 * pulse, 56 * pulse, 0f, Gfx.argb(col, (won ? 0.85f : 0.5f) * a));
+					float x = reelX(c), y = rowY(path[c]);
+					int band = won ? Gfx.lerpColor(GOLD, 0xFFFFFFFF, 0.55f) : col;
+					Gfx.rect(g, x - REEL_W / 2f + 3f, y - 22f, REEL_W - 6f, 44f, Gfx.argb(band, (won ? 0.75f : 0.2f) * a));
+					Gfx.texCentered(g, T_GLOW, x, y, 70 * pulse, 56 * pulse, 0f, Gfx.argb(won ? GOLD : col, (won ? 0.9f : 0.5f) * a));
 				}
 			} else {
-				int edge = Gfx.argb(Gfx.lerpColor(col, 0xFFFFFFFF, 0.45f), 0.9f * a);
-				float w = won ? 2.2f : 1.6f;
-				Gfx.rect(g, x0, y - 23f, x1 - x0, w, edge);
-				Gfx.rect(g, x0, y + 23f - w, x1 - x0, w, edge);
-				Gfx.rect(g, x0, y - 23f, w, 46f, edge);
-				Gfx.rect(g, x1 - w, y - 23f, w, 46f, edge);
+				int edge = Gfx.argb(won ? Gfx.lerpColor(GOLD, 0xFFFFFFFF, 0.25f) : Gfx.lerpColor(col, 0xFFFFFFFF, 0.45f), 0.95f * a);
+				float w = won ? 2.8f : 1.6f;
+				for (int c = 0; c < matched; c++) {
+					float x0 = reelX(c) - REEL_W / 2f + 3f, y0 = rowY(path[c]) - 23f, cw = REEL_W - 6f, ch = 46f;
+					Gfx.rect(g, x0, y0, cw, w, edge);
+					Gfx.rect(g, x0, y0 + ch - w, cw, w, edge);
+					Gfx.rect(g, x0, y0, w, ch, edge);
+					Gfx.rect(g, x0 + cw - w, y0, w, ch, edge);
+				}
 			}
 		}
 	}
 
-	/** Nach dem Gewinn: alles außer der Gewinnlinie wird abgedunkelt. */
+	/** Nach dem Gewinn: alles außer der Gewinnfigur wird abgedunkelt. */
 	private void drawWinDim(GuiGraphicsExtractor g) {
 		if (t < tWin) return;
 		float hp = Gfx.progress(t, tWin, 0.3f);
-		for (int row = 0; row < ROWS; row++) {
-			if (row == winRow) continue;
-			Gfx.rect(g, WIN_X, rowY(row) - ROW_H / 2f, WIN_W, ROW_H, Gfx.argb(OUTLINE, 0.5f * hp));
+		for (int c = 0; c < REELS; c++) {
+			for (int row = 0; row < ROWS; row++) {
+				if (row == paths[0][c]) continue;
+				Gfx.rect(g, WIN_X + c * REEL_W, rowY(row) - ROW_H / 2f, REEL_W, ROW_H, Gfx.argb(OUTLINE, 0.55f * hp));
+			}
 		}
-		for (int c = 0; c < REELS; c++) drawSparkles(g, reelX(c), rowY(winRow), 22f, 3, t - tWin + c);
+		for (int c = 0; c < REELS; c++) drawSparkles(g, reelX(c), rowY(paths[0][c]), 22f, 3, t - tWin + c);
 	}
 
 	/** Leuchtender Rahmen um die letzte Walze, solange sie die Entscheidung bringt. */
@@ -397,15 +441,14 @@ public final class SlotMachineAnimation extends CasinoAnimation {
 	/** Die Pfeile neben den Reihen leuchten, solange die Linie noch gewinnen kann. */
 	private void drawRowArrows(GuiGraphicsExtractor g) {
 		boolean won = t >= tWin;
-		for (int row = 0; row < ROWS; row++) {
-			int[] s = lineState(row, t);
-			boolean alive = s[1] < 0 && s[0] > 0 && (!won || row == winRow);
+		for (int line = 0; line < 3; line++) {
+			int[] s = lineState(line, t);
+			boolean alive = s[1] < 0 && s[0] > 0 && (!won || line == 0);
 			if (!alive) continue;
-			int col = lineSymbol[row].rarity.color;
-			float pulse = 0.6f + 0.4f * (float) Math.sin(t * 9f + row);
-			float y = rowY(row);
-			Gfx.texCentered(g, T_GLOW, MX + 40f, y, 30, 30, 0f, Gfx.argb(col, 0.9f * pulse));
-			Gfx.texCentered(g, T_GLOW, MX + 380f, y, 30, 30, 0f, Gfx.argb(col, 0.9f * pulse));
+			int col = lineSymbol[line].rarity.color;
+			float pulse = 0.6f + 0.4f * (float) Math.sin(t * 9f + line);
+			Gfx.texCentered(g, T_GLOW, MX + 40f, rowY(paths[line][0]), 30, 30, 0f, Gfx.argb(col, 0.9f * pulse));
+			Gfx.texCentered(g, T_GLOW, MX + 380f, rowY(paths[line][REELS - 1]), 30, 30, 0f, Gfx.argb(col, 0.9f * pulse));
 		}
 	}
 
@@ -423,7 +466,7 @@ public final class SlotMachineAnimation extends CasinoAnimation {
 			float y = MID_Y + REEL_R * (float) Math.sin(phi);
 			PrizeDefinition prize = r.strip[Math.floorMod(k, STRIP)];
 			int shade = Gfx.lerpColor(0xFF5A4A66, 0xFFFFFFFF, c);
-			boolean winSymbol = won && k == r.stopIndex + 1 - winRow;
+			boolean winSymbol = won && k == r.stopIndex + 1 - paths[0][i];
 			float pulse = 1f;
 			if (winSymbol) {
 				float hp = Gfx.progress(t, tWin, 0.3f);
@@ -548,7 +591,7 @@ public final class SlotMachineAnimation extends CasinoAnimation {
 		 * Letzte Walze: Am Ende steht der Gewinn in seiner Reihe, der Köder nicht. Beim Halt knapp davor ist noch keine
 		 * der beiden Linien voll. Der Köder rutscht beim Auslaufen möglichst knapp an seiner Reihe vorbei.
 		 */
-		void fillFinal(PrizeDefinition win, PrizeDefinition decoy) {
+		void fillFinal(PrizeDefinition win, PrizeDefinition decoy, int winRow, int decoyRow) {
 			int p = stopIndex;
 			for (int attempt = 0; attempt < 20; attempt++) {
 				fillRandom(win, decoy);
@@ -557,14 +600,14 @@ public final class SlotMachineAnimation extends CasinoAnimation {
 					if (Math.floorMod(m - (p + 1 - winRow), STRIP) == 0) continue;
 					PrizeDefinition old = strip[Math.floorMod(m, STRIP)];
 					set(m, decoy);
-					if (finalValid(win, decoy)) break;
+					if (finalValid(win, decoy, winRow, decoyRow)) break;
 					set(m, old);
 				}
-				if (finalValid(win, decoy)) return;
+				if (finalValid(win, decoy, winRow, decoyRow)) return;
 			}
 		}
 
-		private boolean finalValid(PrizeDefinition win, PrizeDefinition decoy) {
+		private boolean finalValid(PrizeDefinition win, PrizeDefinition decoy, int winRow, int decoyRow) {
 			int p = stopIndex;
 			return symbolAt(p, winRow) == win && symbolAt(p, decoyRow) != decoy
 					&& symbolAt(p - 1, winRow) != win && symbolAt(p - 1, decoyRow) != decoy;

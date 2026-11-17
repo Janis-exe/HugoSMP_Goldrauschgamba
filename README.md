@@ -13,14 +13,15 @@ Goldrausch-Look, alle etwa gleich lang (rund 6 Sekunden Spannung, dann die Enth�
   der Mitte schießt eine Scheibe nach der anderen um. Vor dem letzten Schuss zielt sie spannungsvoll erst auf deinen
   Gewinn, bis nur noch er steht.
 * **Slotmaschine (5 Walzen × 3 Reihen):** Eine Hand zieht den Hebel rechts an der Maschine runter, die fünf Walzen
-  drehen sich und bleiben von links nach rechts stehen. Jede der drei Reihen ist eine mögliche Gewinnlinie mit einem
-  eigenen Symbol, am Anfang ist also noch alles offen. Danach fliegt eine Reihe raus, vor der letzten Walze sind noch
-  zwei im Rennen: dein Gewinn und ein Köder. Die letzte Walze kriecht aus, bleibt knapp davor stehen und rutscht dann
-  nach. Am Ende steht immer nur eine Form fünfmal in einer Reihe. Danach regnet es Münzen.
-* **Roulette mit Einsatzfeld:** Neben dem Rad liegt ein Einsatzfeld mit einem Feld pro Gewinn. Eine Hand setzt
-  Chip-Stapel auf mehrere Felder, dreht dann das Rad an und wirft die Kugel ein. Die Fächer zeigen die Gewinne in ihrer
-  Seltenheitsfarbe. Die Kugel hüpft erst in ein wertvolleres Fach (dessen Feld blinkt) und springt dann in das Fach mit
-  deinem Gewinn. Dein Feld auf dem Einsatzfeld leuchtet auf.
+  drehen sich und bleiben von links nach rechts stehen. Drei mögliche Gewinnlinien mit je einem eigenen Symbol laufen
+  über die Walzen: gerade Reihen, V-Formen oder Zickzack. Am Anfang ist also noch alles offen. Danach fliegt eine
+  Linie raus, vor der letzten Walze sind noch zwei im Rennen: dein Gewinn und ein Köder. Die letzte Walze kriecht aus,
+  bleibt knapp davor stehen und rutscht dann nach. Am Ende bildet immer genau ein Symbol eine Gewinnfigur über alle
+  fünf Walzen (zum Beispiel ein V), jedes Symbol der Figur leuchtet golden. Danach regnet es Münzen.
+* **Roulette-Tisch von oben:** Links das Rad, rechts das Wettfeld wie auf einem echten Tisch (Felder abwechselnd rot
+  und schwarz, ein Feld pro Gewinn), darunter die Chip-Reihe. Eine Hand nimmt Chips und setzt Stapel auf mehrere
+  Felder, dreht dann das Rad an und wirft die Kugel ein. Die Kugel hüpft erst in ein wertvolleres Fach (dessen Feld
+  blinkt) und springt dann in das Fach mit deinem Gewinn. Dein Feld leuchtet golden auf.
 
 Am Ende zoomt die Kamera heran und der Gewinn wird groß enthüllt
 (Seltenheit, Name und Betrag, bei Episch/Legendär mit Konfetti).
@@ -31,11 +32,11 @@ Am Ende zoomt die Kamera heran und der Gewinn wird groß enthüllt
 
 ![Schießstand](docs/schiessstand.gif)
 
-**Slotmaschine (5 × 3)**
+**Slotmaschine (5 × 3, Gewinnfigur)**
 
 ![Slotmaschine](docs/slotmaschine.gif)
 
-**Roulette mit Einsatzfeld**
+**Roulette von oben**
 
 ![Roulette](docs/roulette.gif)
 
@@ -76,17 +77,17 @@ Die meisten RATs stecken in **gefälschten Kopien** bekannter Mods. Lade die Mod
 
 1. **Prüfsumme vergleichen:** Im [Actions](../../actions/workflows/build.yml)-Durchlauf steht in der Zusammenfassung
    die SHA-256 der echten .jar (auch in `SHA256SUMS.txt` im Download). Deine Datei prüfen:
-   * Windows (PowerShell): `Get-FileHash goldrausch-schiessbude-1.2.1.jar`
-   * Linux/macOS: `sha256sum goldrausch-schiessbude-1.2.1.jar`
+   * Windows (PowerShell): `Get-FileHash goldrausch-schiessbude-1.3.0.jar`
+   * Linux/macOS: `sha256sum goldrausch-schiessbude-1.3.0.jar`
 
    Stimmt die Zahl nicht exakt überein: **nicht benutzen.**
 2. **Herkunftsnachweis (mit GitHub CLI):**
-   `gh attestation verify goldrausch-schiessbude-1.2.1.jar --repo Janis-exe/hugosmp_goldrauschgamba`
+   `gh attestation verify goldrausch-schiessbude-1.3.0.jar --repo Janis-exe/hugosmp_goldrauschgamba`
    bestätigt, dass die Datei von GitHub aus genau diesem Repository gebaut wurde.
-3. **Inhalt prüfen (mit JDK 25):** `java tools/SicherheitsCheck.java goldrausch-schiessbude-1.2.1.jar`
+3. **Inhalt prüfen (mit JDK 25):** `java tools/SicherheitsCheck.java goldrausch-schiessbude-1.3.0.jar`
 4. **Selbst bauen:** Der Build ist reproduzierbar. `./gradlew build` ergibt aus diesem Code Byte für Byte dieselbe
-   .jar mit derselben SHA-256 wie bei GitHub. Version 1.2.1:
-   `a3f3d1d39c9507f85834fbfe1affe36a66367c1880fbf4d87e3ffb8408c6b87f`
+   .jar mit derselben SHA-256 wie bei GitHub. Version 1.3.0:
+   `41488d292a49aff6289d965637c282099a7c87d519bd6959a9bccbf03b7d6613`
 
 Hinweis: Das schützt vor einem RAT **über diese Mod**. Andere Mods, Programme oder Downloads prüft es nicht.
 
@@ -94,7 +95,7 @@ Hinweis: Das schützt vor einem RAT **über diese Mod**. Andere Mods, Programme 
 
 1. [Fabric Loader](https://fabricmc.net/use/) **0.20.1+** für Minecraft **26.3** installieren.
 2. **Fabric API** für 26.3 in den `mods`-Ordner legen.
-3. `goldrausch-schiessbude-1.2.1.jar` in den `mods`-Ordner legen (eine ältere Version vorher löschen).
+3. `goldrausch-schiessbude-1.3.0.jar` in den `mods`-Ordner legen (eine ältere Version vorher löschen).
 4. Optional: **Mod Menu** (21.0.1+). Dann gibt es dort den Knopf „Konfigurieren“.
 
 ## Bedienung
@@ -199,7 +200,7 @@ Benötigt **JDK 25**.
 ./gradlew build
 ```
 
-Die fertige Mod liegt danach unter `build/libs/goldrausch-schiessbude-1.2.1.jar`. `build` führt dabei automatisch
+Die fertige Mod liegt danach unter `build/libs/goldrausch-schiessbude-1.3.0.jar`. `build` führt dabei automatisch
 den Sicherheits-Check aus (einzeln: `./gradlew sicherheitsCheck`).
 
 * Minecraft mit der Mod starten: `./gradlew runClient`

@@ -857,13 +857,15 @@ def make_hand():
 # ---------------------------------------------------------------------------
 # Roulette (Gold, Eisen, Redstone, Diamant, Lapis)
 # ---------------------------------------------------------------------------
-# Rad-Mitte in der Szene (WCX, WCY) = (196, 200), Neigung SQ = 0.56, Rad-Vergrößerung K = 1.0.
-# Rechts daneben liegt das Einsatzfeld, das im Spiel gezeichnet wird (identisch zu RouletteAnimation.java)
-SQ = 0.56
-WHEEL_K = 1.0
-WCX = 196
-WCY = 200
+# Roulette von oben gesehen (wie ein echter Spieltisch): Rad-Mitte (WCX, WCY) = (160, 210), Rad-Vergrößerung K = 0.82.
+# Rechts daneben liegt das Wettfeld, das im Spiel gezeichnet wird (identisch zu RouletteAnimation.java)
+WHEEL_K = 0.82
+WCX = 160
+WCY = 210
 FELT = (30, 136, 98, 255)
+WOOD = (110, 58, 40, 255)
+WOOD_L = (150, 86, 56, 255)
+WOOD_D = (70, 34, 26, 255)
 
 
 def make_roulette_background():
@@ -872,54 +874,35 @@ def make_roulette_background():
     k = c.k
     wall = vgradient(int(W * k), int(H * k), [
         (0.0, (34, 12, 62, 255)),
-        (0.26, (80, 28, 112, 255)),
+        (0.2, (80, 28, 112, 255)),
         (1.0, (80, 28, 112, 255)),
     ])
     c.img.paste(wall, (0, 0))
     c.d = ImageDraw.Draw(c.img)
 
-    def stripes(l):
-        for x in range(28, 612, 24):
-            l.rect(x, 34, x + 10, 96, (255, 255, 255, 16))
-    layer(c, stripes)
-    c.rect(-4, 80, W + 4, 86, GOLD, OUTLINE, 1.6)
-
-    # Licht der Lampen
-    def light(l):
-        for x in (150, 490):
-            l.poly([(x - 20, 76), (x + 20, 76), (x + 110, 330), (x - 110, 330)], (255, 236, 190, 46))
-    layer(c, light, blur=10)
-
-    # Tisch: Polsterrand und Filz in Perspektive
-    rail = [(50, 88), (590, 88), (712, 372), (-72, 372)]
-    c.poly(rail, (112, 34, 60, 255), OUTLINE, 2.6)
-    c.line([(58, 92), (582, 92)], (156, 64, 92, 255), 2)
-    felt = [(72, 101), (568, 101), (680, 372), (-40, 372)]
-    c.poly(felt, (226, 180, 80, 255), OUTLINE, 2.2)
-    felt_in = [(76, 104), (564, 104), (675, 372), (-35, 372)]
-    c.poly(felt_in, FELT)
+    # Filz (von oben, ohne Perspektive) mit weichem Licht in der Mitte
+    c.rect(-4, 80, W + 4, 340, FELT)
 
     def felt_light(l):
-        l.ellipse(320, 236, 320, 150, (90, 210, 150, 110))
-    layer(c, felt_light, blur=40, mask=poly_mask(c, felt_in))
+        l.ellipse(330, 210, 300, 120, (90, 210, 150, 120))
+    layer(c, felt_light, blur=40, mask=poly_mask(c, [(0, 80), (W, 80), (W, 340), (0, 340)]))
 
     def felt_edge(l):
-        l.poly(felt_in, None, (10, 60, 40, 150), 14)
-    layer(c, felt_edge, blur=8, mask=poly_mask(c, felt_in))
-    # aufgedruckte Goldlinie
-    c.poly([(96, 116), (544, 116), (648, 372), (-8, 372)], None, (232, 200, 112, 255), 1.6)
+        l.rect(0, 80, W, 340, None, (10, 60, 40, 160), 16)
+    layer(c, felt_edge, blur=8, mask=poly_mask(c, [(0, 80), (W, 80), (W, 340), (0, 340)]))
+
+    # Holzbanden oben und unten
+    for y0, y1 in ((60, 84), (336, 364)):
+        c.rect(-4, y0, W + 4, y1, WOOD, OUTLINE, 2.4)
+        c.rect(-4, y0 + 3, W + 4, y0 + 6, WOOD_L)
+        c.rect(-4, y1 - 5, W + 4, y1 - 2, WOOD_D)
+    c.line([(0, 82.5), (W, 82.5)], GOLD, 1.4)
+    c.line([(0, 337.5), (W, 337.5)], GOLD, 1.4)
+
     # Schatten unter dem Rad
     def wheel_shadow(l):
-        l.ellipse(WCX + 2, WCY + 16, 162 * WHEEL_K, 96 * WHEEL_K, (6, 30, 20, 150))
-    layer(c, wheel_shadow, blur=8)
-
-    # Lampen
-    for x in (150, 490):
-        c.line([(x, 30), (x, 60)], (60, 40, 70, 255), 1.6)
-        c.poly([(x - 26, 77), (x + 26, 77), (x + 14, 58), (x - 14, 58)], (34, 104, 78, 255), OUTLINE, 2.2)
-        c.line([(x - 10, 62), (x - 18, 74)], (90, 170, 130, 255), 1.6)
-        c.rect(x - 27, 74, x + 27, 80, GOLD, OUTLINE, 1.8, radius=2)
-        c.ellipse(x, 81, 7, 3, (255, 246, 210, 255))
+        l.ellipse(WCX + 5, WCY + 7, 150 * WHEEL_K, 150 * WHEEL_K, (6, 30, 20, 170))
+    layer(c, wheel_shadow, blur=7)
 
     draw_pillars(c)
     draw_awning(c)
@@ -927,37 +910,44 @@ def make_roulette_background():
 
 
 def make_roulette_bowl():
-    """Feststehende Holzschüssel mit Kugelbahn, schon perspektivisch (oval) gezeichnet."""
-    W, H = 304, 196
+    """Feststehender Holzkessel mit Kugelbahn, von oben. Gleiche Maßeinheit wie das Rad (Mitte 150, 150)."""
+    W = H = 300
     c = Canvas(W, H, px=3)
-    cx, cy = 152, 87
+    m = 150
     wood_d = (86, 40, 28, 255)
-    wood = (150, 80, 42, 255)
-    wood_l = (192, 114, 62, 255)
+    wood = (118, 58, 36, 255)
+    wood_l = (160, 92, 54, 255)
     track = (226, 176, 112, 255)
-
-    def ell(r, dy=0, fill=None, outline=None, width=0):
-        c.ellipse(cx, cy + dy, r, r * SQ, fill, outline, width)
-
-    ell(150, 20, wood_d, OUTLINE, 3)
-    c.rect(cx - 150, cy, cx + 150, cy + 20, wood_d)
-    c.line([(cx - 150, cy), (cx - 150, cy + 20)], OUTLINE, 3)
-    c.line([(cx + 150, cy), (cx + 150, cy + 20)], OUTLINE, 3)
-    c.d.arc(c.box(cx - 150, cy + 11 - 150 * SQ, cx + 150, cy + 11 + 150 * SQ), 0, 180, fill=GOLD, width=round(2.4 * c.k))
-    ell(150, 0, wood, OUTLINE, 3)
-    ell(146, 0, None, wood_l, 1.6)
-    ell(141, 0, wood, GOLD, 2.2)
-    ell(136, 0, track, OUTLINE, 1.8)
-    ell(131, 0, None, (240, 200, 140, 255), 1.2)
-    ell(117, 0, (52, 24, 30, 255), OUTLINE, 2)
-    # Rauten auf der Kugelbahn
+    c.ellipse(m, m, 149, 149, wood_d, OUTLINE, 3)
+    c.ellipse(m, m, 145, 145, wood, None)
+    c.ellipse(m, m, 143, 143, None, wood_l, 1.4)
+    # helle Einlagen im Holz (wie bei echten Kesseln)
     for i in range(8):
         a = i * math.pi / 4 + math.pi / 8
-        x, y = cx + math.cos(a) * 121, cy + math.sin(a) * 121 * SQ
-        c.poly([(x - 4, y), (x, y - 2.2), (x + 4, y), (x, y + 2.2)], GOLD, OUTLINE, 1)
+        cx, cy = m + math.cos(a) * 139.5, m + math.sin(a) * 139.5
+        pts = []
+        for j in range(24):
+            b = j / 24 * 2 * math.pi
+            # Kapsel quer zur Mitte
+            ex, ey = math.cos(b) * 3.2, math.sin(b) * 9
+            pts.append((cx + ex * math.cos(a) - ey * math.sin(a), cy + ex * math.sin(a) + ey * math.cos(a)))
+        c.poly(pts, (214, 160, 96, 255), OUTLINE, 1)
+    c.ellipse(m, m, 135, 135, wood, GOLD, 2.2)
+    c.ellipse(m, m, 133, 133, track, OUTLINE, 1.8)
+    c.ellipse(m, m, 129, 129, None, (240, 200, 140, 255), 1.2)
+    c.ellipse(m, m, 117, 117, (52, 24, 30, 255), OUTLINE, 2)
+    # Rauten auf der Kugelbahn
+    for i in range(8):
+        a = i * math.pi / 4
+        x, y = m + math.cos(a) * 123, m + math.sin(a) * 123
+        r0 = (math.cos(a), math.sin(a))
+        t0 = (-r0[1], r0[0])
+        pts = [(x + r0[0] * 2.4, y + r0[1] * 2.4), (x + t0[0] * 4.5, y + t0[1] * 4.5),
+               (x - r0[0] * 2.4, y - r0[1] * 2.4), (x - t0[0] * 4.5, y - t0[1] * 4.5)]
+        c.poly(pts, GOLD, OUTLINE, 1)
 
     def shine(l):
-        l.d.arc(l.box(cx - 146, cy - 146 * SQ, cx + 146, cy + 146 * SQ), 200, 250, fill=(255, 255, 255, 110), width=round(2.4 * l.k))
+        l.d.arc(l.box(m - 141, m - 141, m + 141, m + 141), 200, 250, fill=(255, 255, 255, 90), width=round(2.4 * l.k))
     layer(c, shine)
     save(c.done(), GUI, "roulette_bowl.png")
 
@@ -1048,23 +1038,26 @@ def make_ball():
 
 
 def make_chip():
-    """Pokerchip schräg von oben. Hell gezeichnet, wird im Spiel eingefärbt. Oberseite-Mitte bei (18, 11)."""
-    W, H = 36, 26
-    c = Canvas(W, H, px=3)
-    body = (200, 200, 200, 255)
-    c.ellipse(18, 15.5, 16.5, 9.2, body, OUTLINE, 2)
-    c.rect(1.5, 11, 34.5, 15.5, body)
-    c.line([(1.5, 11), (1.5, 15.5)], OUTLINE, 2)
-    c.line([(34.5, 11), (34.5, 15.5)], OUTLINE, 2)
-    for xs in (4.5, 12, 24, 31.5):
-        c.rect(xs - 1.6, 13, xs + 1.6, 19.5 if 8 < xs < 28 else 17.5, (255, 255, 255, 255))
-    c.ellipse(18, 11, 16.5, 9.2, (230, 230, 230, 255), OUTLINE, 2)
-    for i in range(8):
-        a = i * math.pi / 4 + math.pi / 8
-        x, y = 18 + math.cos(a) * 13.6, 11 + math.sin(a) * 7.6
-        c.ellipse(x, y, 2.3, 1.4, (255, 255, 255, 255))
-    c.ellipse(18, 11, 10.5, 5.8, None, (255, 255, 255, 255), 1.4)
+    """Pokerchip von oben. chip.png wird im Spiel eingefärbt, chip_marks.png (weiße Kanten-Streifen) liegt darüber."""
+    S = 24
+    c = Canvas(S, S, px=3)
+    m = S / 2
+    c.ellipse(m, m, 11.6, 11.6, OUTLINE)
+    c.ellipse(m, m, 10.2, 10.2, (235, 235, 235, 255))
+    c.ellipse(m, m, 6.6, 6.6, (200, 200, 200, 255))
+    c.ellipse(m, m, 5.6, 5.6, (245, 245, 245, 255))
     save(c.done(), GUI, "chip.png")
+    c = Canvas(S, S, px=3)
+    for i in range(6):
+        a = i * math.pi / 3
+        r0, r1 = 7.2, 10.1
+        d = 0.32
+        pts = [(m + math.cos(a - d) * r0, m + math.sin(a - d) * r0), (m + math.cos(a - d * 0.75) * r1, m + math.sin(a - d * 0.75) * r1),
+               (m + math.cos(a + d * 0.75) * r1, m + math.sin(a + d * 0.75) * r1), (m + math.cos(a + d) * r0, m + math.sin(a + d) * r0)]
+        c.poly(pts, (255, 255, 255, 255))
+    c.ellipse(m, m, 6.9, 6.9, None, (255, 255, 255, 230), 0.8)
+    c.d.arc(c.box(m - 8.6, m - 8.6, m + 8.6, m + 8.6), 200, 250, fill=(255, 255, 255, 160), width=round(1.2 * c.k))
+    save(c.done(), GUI, "chip_marks.png")
 
 
 if __name__ == "__main__":

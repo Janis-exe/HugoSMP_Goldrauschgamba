@@ -18,29 +18,29 @@ import java.util.Locale;
 /**
  * Die Roulette-Animation (im Erz-Test: Gold, Eisen, Redstone, Diamant, Lapis).
  * <p>
- * Ablauf: Neben dem Rad liegt ein Einsatzfeld mit einem Feld pro Gewinn. Eine Hand setzt Chip-Stapel auf mehrere
- * Felder, greift dann den Griff in der Radmitte, dreht das Rad an und wirft die Kugel ein. Die Kugel kreist auf der
+ * Der Tisch wird von oben gezeigt wie ein echter Roulette-Tisch: links das Rad, rechts das Wettfeld mit einem
+ * Feld pro Gewinn (abwechselnd rot und schwarz), darunter die Chip-Reihe.
+ * <p>
+ * Ablauf: Eine Hand nimmt Chips aus der Reihe und setzt Stapel auf mehrere Felder, greift dann den Griff in der
+ * Radmitte, dreht das Rad an und wirft die Kugel ein. Die Kugel kreist auf der
  * Bahn, fällt in die Fächer, hüpft über ein paar Stege, bleibt zur Spannung kurz in einem wertvolleren Fach liegen
  * (dessen Feld blinkt) und springt dann in das Fach mit deinem Gewinn. Das Rad läuft aus, bis dein Fach vorne steht,
  * dein Feld leuchtet auf, und die Kamera zoomt auf Fach und Feld.
- * <p>
- * Das Rad wird von schräg oben gezeigt: gezeichnet wird es flach und dann senkrecht auf {@link #SQ} gestaucht.
- * Das Einsatzfeld liegt schräg auf dem Tisch (Scherung {@link #SHEAR}).
  */
 public final class RouletteAnimation extends CasinoAnimation {
 	// ---- Layout in virtuellen Einheiten (passt zu tools/generate_textures.py) ----
-	static final float WCX = 196f, WCY = 200f, SQ = 0.56f;
-	/** Vergrößerung des Rads gegenüber den Grafik-Maßen (Schüssel 304 x 196, Rad 232 x 232). */
-	static final float K = 1.0f;
+	static final float WCX = 160f, WCY = 210f, SQ = 1f;
+	/** Vergrößerung des Rads gegenüber den Grafik-Maßen (Kessel 300 x 300, Rad 232 x 232). */
+	static final float K = 0.82f;
 	static final float WHEEL_R = 116f * K, R_TRACK = 127f * K, R_ICON = 94f * K, R_BALL = 106f * K;
 	static final int POCKETS = 12;
 	static final float STEP = (float) (Math.PI * 2 / POCKETS);
-	static final float BALL = 10f * K, ICON = 23f * K;
-	/** Einsatzfeld: obere Mitte, Breite, Neigung, Rand. */
-	static final float BX = 452f, BY = 124f, BW = 186f, SHEAR = 0.24f, PAD = 6f;
-	/** Chip-Stapel liegen rechts im Feld. */
-	static final float STACK_LX = BW / 2f - 28f;
-	static final int[] CHIP_COLORS = {0xFFFFC93C, 0xFFB060FF, 0xFFE63A4A, 0xFF3FA7FF, 0xFF4CDB5A};
+	static final float BALL = 9f, ICON = 23f * K;
+	/** Wettfeld: linke obere Ecke der Felder, Höhe; die Breite eines Felds hängt von der Anzahl der Gewinne ab. */
+	static final float GX = 350f, GY = 112f, CH = 150f;
+	/** Chip-Reihe unter dem Wettfeld. */
+	static final float RACK_Y = 300f;
+	static final int[] CHIP_COLORS = {0xFFE63A4A, 0xFF3FA7FF, 0xFF34343C, 0xFF4CDB5A, 0xFFFFC93C, 0xFFFF8A2B, 0xFFFF6FC8, 0xFFC0306A, 0xFF7A1E2E};
 
 	static final Identifier T_BG = Gfx.id("textures/gui/roulette_background.png");
 	static final Identifier T_BOWL = Gfx.id("textures/gui/roulette_bowl.png");
@@ -50,17 +50,18 @@ public final class RouletteAnimation extends CasinoAnimation {
 	static final Identifier T_TURRET = Gfx.id("textures/gui/roulette_turret.png");
 	static final Identifier T_BALL = Gfx.id("textures/gui/ball.png");
 	static final Identifier T_CHIP = Gfx.id("textures/gui/chip.png");
+	static final Identifier T_CHIP_MARKS = Gfx.id("textures/gui/chip_marks.png");
 
 	private final PrizeDefinition[] pockets = new PrizeDefinition[POCKETS];
 	private final int winIdx;
 
 	/** Felder des Einsatzfelds (eins pro Gewinn) und die gesetzten Stapel. */
 	private final List<PrizeDefinition> fields;
-	private final float fieldH;
+	private final float fieldW;
 	private final int winField, teaseField;
 	private final List<Bet> bets = new ArrayList<>();
 
-	private final float tHandIn, tSpin, tLaunch, tDrop, tTease, tTeaseEnd, tRest, tWheelStop;
+	private final float tHandIn, tRack, tSpin, tLaunch, tDrop, tTease, tTeaseEnd, tRest, tWheelStop;
 	private final float theta0, spinTotal;
 	/** Kugel beim Rollen: absoluter Winkel = rollEnd + rollTotal * (1 - f(p)). */
 	private final float rollEnd, rollTotal;
@@ -74,7 +75,7 @@ public final class RouletteAnimation extends CasinoAnimation {
 
 		// --- Einsatzfeld: ein Feld pro Gewinn; gesetzt wird auf den Gewinn, den Lockvogel und ein weiteres Feld ---
 		fields = new ArrayList<>(ModConfig.get().prizes);
-		fieldH = Math.min(34f, 172f / fields.size());
+		fieldW = Math.min(52f, 256f / fields.size());
 		winField = fieldOf(win);
 		teaseField = fieldOf(pockets[(winIdx + 1) % POCKETS]);
 		List<Integer> chosen = new ArrayList<>();
@@ -86,13 +87,15 @@ public final class RouletteAnimation extends CasinoAnimation {
 		if (!others.isEmpty()) chosen.add(others.getFirst());
 		Collections.sort(chosen);
 
-		// --- Die Hand setzt die Chips (von hinten nach vorne) ---
-		tHandIn = t0 - 0.05f;
+		// --- Die Hand nimmt Chips aus der Reihe und setzt sie (von links nach rechts) ---
+		tHandIn = t0 - 0.1f;
+		tRack = t0 + 0.2f;
+		cue(tRack, SoundEvents.NOTE_BLOCK_HAT, 1.3f, 0.4f);
 		List<Integer> colors = new ArrayList<>();
 		for (int c : CHIP_COLORS) colors.add(c);
 		Collections.shuffle(colors, rnd);
 		for (int i = 0; i < chosen.size(); i++) {
-			float at = t0 + 0.3f + i * 0.24f;
+			float at = t0 + 0.48f + i * 0.22f;
 			bets.add(new Bet(chosen.get(i), at, colors.get(i % colors.size()), 2 + rnd.nextInt(3)));
 			cue(at, SoundEvents.NOTE_BLOCK_HAT, 1.1f + 0.1f * i, 0.5f);
 			cue(at + 0.03f, SoundEvents.DECORATED_POT_HIT, 1.9f, 0.35f);
@@ -289,47 +292,35 @@ public final class RouletteAnimation extends CasinoAnimation {
 		return WCY + SQ * r * (float) Math.sin(angle);
 	}
 
-	// ---- Einsatzfeld-Geometrie ----------------------------------------------------------------------------------------
+	// ---- Wettfeld-Geometrie ----------------------------------------------------------------------------------------------
 
-	private float boardH() {
-		return fields.size() * fieldH + 2f * PAD;
+	private float fieldX(int i) {
+		return GX + (i + 0.5f) * fieldW;
 	}
 
-	/** Mitte eines Felds in Brett-Koordinaten (y). */
-	private float fieldCY(int i) {
-		return PAD + (i + 0.5f) * fieldH;
-	}
-
-	/** Brett-Koordinaten (lx, ly) -> Szene. */
-	private static float boardX(float lx, float ly) {
-		return BX + lx + SHEAR * ly;
-	}
-
-	private static float boardY(float ly) {
-		return BY + ly;
+	/** Stapel liegen im unteren Teil des Felds. */
+	private static float stackY() {
+		return GY + CH - 21f;
 	}
 
 	// ---- Kamera -----------------------------------------------------------------------------------------------------
 
-	/** Am Ende zeigt die Kamera Gewinnfach (vorne am Rad) und Gewinnfeld zusammen. */
+	/** Am Ende zeigt die Kamera Gewinnfach (unten am Rad) und Gewinnfeld zusammen. */
 	@Override
 	protected float focusX() {
-		float ly = fieldCY(winField);
-		return (WCX + boardX(0f, ly)) / 2f;
+		return (WCX + fieldX(winField)) / 2f;
 	}
 
 	@Override
 	protected float focusY() {
-		float ly = fieldCY(winField);
-		return (WCY + SQ * R_ICON + boardY(ly)) / 2f;
+		return (WCY + R_ICON + GY + CH / 2f) / 2f;
 	}
 
 	@Override
 	protected float focusZoom() {
-		float ly = fieldCY(winField);
-		float dx = Math.abs(boardX(0f, ly) - WCX);
-		float dy = Math.abs(boardY(ly) - (WCY + SQ * R_ICON));
-		return Math.min(1.6f, Math.min(VW / (dx + 230f), VH / (dy + 130f)));
+		float dx = Math.abs(fieldX(winField) - WCX);
+		float dy = Math.abs(GY + CH / 2f - (WCY + R_ICON));
+		return Math.min(1.6f, Math.min(VW / (dx + 200f), VH / (dy + 170f)));
 	}
 
 	@Override
@@ -353,15 +344,12 @@ public final class RouletteAnimation extends CasinoAnimation {
 	protected void drawScene(GuiGraphicsExtractor g) {
 		Gfx.tex(g, T_BG, 0, 0, VW, VH, Gfx.argb(0xFFFFFFFF, 1f));
 		drawAwningBulbs(g);
-		for (int i = 0; i < 2; i++) {
-			float flicker = 0.55f + 0.08f * (float) Math.sin(t * 13f + i * 2f);
-			Gfx.texCentered(g, T_GLOW, i == 0 ? 150 : 490, 82, 60, 30, 0f, Gfx.argb(0xFFFFE6A0, flicker));
-		}
 
 		drawBoard(g);
+		drawRack(g);
 		drawChipStacks(g);
 
-		Gfx.tex(g, T_BOWL, WCX - 152f * K, WCY - 87f * K, 304f * K, 196f * K, Gfx.argb(0xFFFFFFFF, 1f));
+		Gfx.tex(g, T_BOWL, WCX - 150f * K, WCY - 150f * K, 300f * K, 300f * K, Gfx.argb(0xFFFFFFFF, 1f));
 		float wheel = wheelAngle(t);
 		drawWheel(g, wheel);
 		if (t >= tWin) drawWinnerPocket(g, wheel);
@@ -371,79 +359,94 @@ public final class RouletteAnimation extends CasinoAnimation {
 		drawSign(g);
 	}
 
-	/** Das Einsatzfeld: schräg auf dem Tisch liegendes Brett mit einem Feld pro Gewinn. */
+	/** Das Wettfeld von oben: Felder abwechselnd rot und schwarz, weiße Linien, links die Spitze wie beim "0"-Feld. */
 	private void drawBoard(GuiGraphicsExtractor g) {
-		Matrix3x2fStack p = g.pose();
-		p.pushMatrix();
-		p.translate(BX, BY);
-		p.mul(new Matrix3x2f(1f, 0f, SHEAR, 1f, 0f, 0f));
-		float h = boardH();
-		float x0 = -BW / 2f;
-		Gfx.rect(g, x0 + 4f, 5f, BW, h, Gfx.argb(0xFF06261A, 0.45f));
-		Gfx.rect(g, x0 - 4f, -4f, BW + 8f, h + 8f, Gfx.argb(OUTLINE, 1f));
-		Gfx.rect(g, x0 - 2.5f, -2.5f, BW + 5f, h + 5f, Gfx.argb(GOLD, 1f));
-		Gfx.rect(g, x0, 0f, BW, h, Gfx.argb(0xFF14563C, 1f));
-		Gfx.outlinedText(g, "EINSATZ", 0f, -12f, 0.9f, GOLD, OUTLINE, 1f);
+		int line = Gfx.argb(0xFFEDE6C8, 0.95f);
+		float w = fields.size() * fieldW;
+		Gfx.outlinedText(g, "EINSATZ", GX + w / 2f, GY - 11f, 1f, GOLD, OUTLINE, 1f);
+		// Spitze links mit Goldmünze
+		Gfx.line(g, GX, GY, GX - 28f, GY + CH / 2f, 1.6f, line);
+		Gfx.line(g, GX - 28f, GY + CH / 2f, GX, GY + CH, 1.6f, line);
+		Gfx.texCentered(g, T_COIN, GX - 11f, GY + CH / 2f, 15f, 15f, 0f, Gfx.argb(0xFFFFFFFF, 1f));
 
 		boolean won = t >= tWin;
 		boolean teasing = t >= tTease && t < tTeaseEnd;
 		for (int i = 0; i < fields.size(); i++) {
 			PrizeDefinition prize = fields.get(i);
-			float top = PAD + i * fieldH;
-			float cy = top + fieldH / 2f;
-			int col = prize.rarity.color;
-			float light = 0.32f;
+			float x = GX + i * fieldW;
+			int base = i % 2 == 0 ? 0xFFB3202E : 0xFF1F1D24;
+			int fill = base;
 			if (won && i == winField) {
-				light = Gfx.lerp(0.32f, 0.8f + 0.12f * (float) Math.sin((t - tWin) * 10f), Gfx.progress(t, tWin, 0.25f));
+				float f = Gfx.progress(t, tWin, 0.25f) * (0.75f + 0.2f * (float) Math.sin((t - tWin) * 10f));
+				fill = Gfx.lerpColor(base, Gfx.lerpColor(rarity.color, 0xFFFFFFFF, 0.2f), f);
 			} else if (teasing && i == teaseField) {
-				light = 0.4f + 0.45f * (0.5f + 0.5f * (float) Math.sin((t - tTease) * 16f));
+				fill = Gfx.lerpColor(base, prize.rarity.color, 0.25f + 0.45f * (0.5f + 0.5f * (float) Math.sin((t - tTease) * 16f)));
 			} else if (won) {
-				light = Gfx.lerp(0.32f, 0.18f, Gfx.progress(t, tWin, 0.3f));
+				fill = Gfx.lerpColor(base, 0xFF101010, 0.35f * Gfx.progress(t, tWin, 0.3f));
 			}
-			Gfx.rect(g, x0 + PAD, top + 1f, BW - 2f * PAD, fieldH - 2f, Gfx.argb(Gfx.lerpColor(0xFF1E5A40, col, light), 1f));
-			if (i > 0) Gfx.rect(g, x0 + PAD, top - 0.6f, BW - 2f * PAD, 1.2f, Gfx.argb(0xFFE8C870, 0.9f));
-			float icon = Math.min(26f, fieldH * 0.8f);
-			PrizeIcon.of(prize).draw(g, x0 + PAD + 4f + icon / 2f, cy, icon, icon * 0.82f, 0f, Gfx.argb(0xFFFFFFFF, 1f));
+			Gfx.rect(g, x, GY, fieldW, CH, Gfx.argb(fill, 1f));
+			// Seltenheits-Streifen unten verbindet das Feld mit der Farbe des Fachs im Rad
+			Gfx.rect(g, x + 2f, GY + CH - 7f, fieldW - 4f, 5f, Gfx.argb(prize.rarity.color, 1f));
+			float icon = Math.min(30f, fieldW * 0.68f);
+			PrizeIcon.of(prize).draw(g, x + fieldW / 2f, GY + 22f, icon, icon, 0f, Gfx.argb(0xFFFFFFFF, 1f));
+			// Name senkrecht wie die Zahlen auf einem echten Tisch
 			String name = prize.name.toUpperCase(Locale.GERMAN);
-			float scale = Math.min(Math.min(1f, fieldH / 24f), 84f / Math.max(1, Gfx.textWidth(name)));
-			Gfx.outlinedText(g, name, -6f, cy, scale, 0xFFFFFFFF, OUTLINE, 1f);
-			// Markierung für den Stapel
-			Gfx.rect(g, STACK_LX - 13f, cy - 0.5f, 26f, 1f, Gfx.argb(0xFFE8C870, 0.35f));
+			float scale = Math.min(Math.min(1.1f, fieldW / 14f), 66f / Math.max(1, Gfx.textWidth(name)));
+			Matrix3x2fStack p = g.pose();
+			p.pushMatrix();
+			p.translate(x + fieldW / 2f, GY + 72f);
+			p.rotate((float) (-Math.PI / 2));
+			Gfx.outlinedText(g, name, 0f, 0f, scale, 0xFFFFFFFF, OUTLINE, 1f);
+			p.popMatrix();
 		}
-		// Rahmen um das Gewinnfeld
-		if (won) {
-			float hp = Gfx.progress(t, tWin, 0.25f);
-			float top = PAD + winField * fieldH;
-			int edge = Gfx.argb(Gfx.lerpColor(rarity.color, 0xFFFFFFFF, 0.5f), hp);
-			Gfx.rect(g, x0 + PAD - 1f, top - 0.5f, BW - 2f * PAD + 2f, 2f, edge);
-			Gfx.rect(g, x0 + PAD - 1f, top + fieldH - 1.5f, BW - 2f * PAD + 2f, 2f, edge);
-			Gfx.rect(g, x0 + PAD - 1f, top - 0.5f, 2f, fieldH + 1f, edge);
-			Gfx.rect(g, BW / 2f - PAD - 1f, top - 0.5f, 2f, fieldH + 1f, edge);
-		}
-		p.popMatrix();
+		// Linien
+		Gfx.rect(g, GX, GY - 0.8f, w, 1.6f, line);
+		Gfx.rect(g, GX, GY + CH - 0.8f, w, 1.6f, line);
+		for (int i = 0; i <= fields.size(); i++) Gfx.rect(g, GX + i * fieldW - 0.8f, GY, 1.6f, CH, line);
+		// Feld-Leiste darunter (wie "1st 12" usw.): Seltenheit
+		Gfx.rect(g, GX, GY + CH + 22f - 0.8f, w, 1.6f, line);
+		Gfx.rect(g, GX - 0.8f, GY + CH, 1.6f, 22f, line);
+		Gfx.rect(g, GX + w - 0.8f, GY + CH, 1.6f, 22f, line);
+		Gfx.centeredText(g, "GEWINN-FELDER", GX + w / 2f, GY + CH + 11f, 0.9f, 0xFFEDE6C8, 0.95f);
 
-		if (t >= tTease && t < tTeaseEnd && teaseField != winField) {
-			float ly = fieldCY(teaseField);
+		if (teasing && teaseField != winField) {
 			float f = Gfx.progress(t, tTease, 0.15f) * (1f - Gfx.progress(t, tTeaseEnd - 0.1f, 0.1f));
 			float pulse = 0.6f + 0.4f * (float) Math.sin((t - tTease) * 16f);
-			Gfx.texCentered(g, T_GLOW, boardX(0f, ly), boardY(ly), BW * 1.4f, fieldH * 2.8f, 0f,
-					Gfx.argb(fields.get(teaseField).rarity.color, 0.5f * f * pulse));
+			Gfx.texCentered(g, T_GLOW, fieldX(teaseField), GY + CH / 2f, fieldW * 2.6f, CH * 1.3f, 0f,
+					Gfx.argb(fields.get(teaseField).rarity.color, 0.45f * f * pulse));
 		}
 		if (won) {
-			float ly = fieldCY(winField);
 			float hp = Gfx.progress(t, tWin, 0.3f);
 			float pulse = 1f + 0.08f * (float) Math.sin(t * 7f);
-			Gfx.texCentered(g, T_GLOW, boardX(0f, ly), boardY(ly), BW * 1.5f * pulse, fieldH * 3.2f * pulse, 0f, Gfx.argb(rarity.color, 0.55f * hp));
-			drawSparkles(g, boardX(-30f, ly), boardY(ly), 40f, 6, t - tWin);
+			float x = GX + winField * fieldW;
+			Gfx.texCentered(g, T_GLOW, fieldX(winField), GY + CH / 2f, fieldW * 3f * pulse, CH * 1.4f * pulse, 0f, Gfx.argb(rarity.color, 0.55f * hp));
+			int edge = Gfx.argb(Gfx.lerpColor(GOLD, 0xFFFFFFFF, 0.3f), hp);
+			Gfx.rect(g, x - 1.5f, GY - 1.5f, fieldW + 3f, 3f, edge);
+			Gfx.rect(g, x - 1.5f, GY + CH - 1.5f, fieldW + 3f, 3f, edge);
+			Gfx.rect(g, x - 1.5f, GY - 1.5f, 3f, CH + 3f, edge);
+			Gfx.rect(g, x + fieldW - 1.5f, GY - 1.5f, 3f, CH + 3f, edge);
+			drawSparkles(g, fieldX(winField), GY + 40f, 34f, 6, t - tWin);
 		}
+	}
+
+	/** Chip-Reihe unter dem Wettfeld (wie auf dem Tisch des Croupiers). */
+	private void drawRack(GuiGraphicsExtractor g) {
+		float w = fields.size() * fieldW;
+		int n = CHIP_COLORS.length;
+		float step = Math.min(30f, (w + 20f) / n);
+		float x0 = GX + w / 2f - step * (n - 1) / 2f;
+		for (int i = 0; i < n; i++) drawStack(g, x0 + i * step, RACK_Y, CHIP_COLORS[i], 3, 1f);
+	}
+
+	private float rackX() {
+		return GX + fields.size() * fieldW / 2f;
 	}
 
 	private void drawChipStacks(GuiGraphicsExtractor g) {
 		boolean won = t >= tWin;
 		for (Bet b : bets) {
 			if (t < b.at) continue;
-			float ly = fieldCY(b.field);
-			float x = boardX(STACK_LX, ly), y = boardY(ly);
+			float x = fieldX(b.field), y = stackY();
 			float drop = 1f - Gfx.easeOutBack(Gfx.progress(t, b.at, 0.16f));
 			float a = 1f;
 			float jump = 0f;
@@ -451,7 +454,7 @@ public final class RouletteAnimation extends CasinoAnimation {
 				if (b.field == winField) {
 					float since = t - tWin;
 					jump = since < 0.5f ? (float) Math.abs(Math.sin(since * 12f)) * 4f * (1f - since / 0.5f) : 0f;
-					Gfx.texCentered(g, T_GLOW, x, y - 6f, 50, 36, 0f, Gfx.argb(GOLD, 0.6f * Gfx.progress(t, tWin, 0.25f)));
+					Gfx.texCentered(g, T_GLOW, x, y - 4f, 46, 46, 0f, Gfx.argb(GOLD, 0.6f * Gfx.progress(t, tWin, 0.25f)));
 				} else {
 					a = 1f - 0.45f * Gfx.progress(t, tWin, 0.3f);
 				}
@@ -460,11 +463,14 @@ public final class RouletteAnimation extends CasinoAnimation {
 		}
 	}
 
-	/** Chip-Stapel; (x, y) = Mitte des untersten Chips. */
+	/** Chip-Stapel von oben; (x, y) = Mitte des untersten Chips, jeder weitere liegt leicht versetzt darüber. */
 	private static void drawStack(GuiGraphicsExtractor g, float x, float y, int color, int chips, float a) {
+		float size = 20f;
 		for (int j = 0; j < chips; j++) {
-			int col = j == chips - 1 ? Gfx.lerpColor(color, 0xFFFFFFFF, 0.15f) : color;
-			Gfx.tex(g, T_CHIP, x - 14.4f, y - 8.8f - j * 2.7f, 28.8f, 20.8f, Gfx.argb(col, a));
+			float cx = x - j * 0.5f, cy = y - j * 1.8f;
+			int col = j == chips - 1 ? color : Gfx.lerpColor(color, 0xFF000000, 0.25f);
+			Gfx.texCentered(g, T_CHIP, cx, cy, size, size, 0f, Gfx.argb(col, a));
+			Gfx.texCentered(g, T_CHIP_MARKS, cx, cy, size, size, 0f, Gfx.argb(0xFFFFFFFF, a));
 		}
 	}
 
@@ -485,7 +491,6 @@ public final class RouletteAnimation extends CasinoAnimation {
 			p.rotate(i * STEP);
 			p.translate(R_ICON, 0f);
 			p.rotate((float) (-Math.PI / 2));
-			p.scale(1f, 1.3f);
 			PrizeIcon.of(pockets[i]).draw(g, 0f, 0f, ICON, ICON, 0f, Gfx.argb(0xFFFFFFFF, 1f - 0.5f * blur));
 			p.popMatrix();
 		}
@@ -507,7 +512,7 @@ public final class RouletteAnimation extends CasinoAnimation {
 		Gfx.texCentered(g, T_GLOW, x, y, 105 * pulse, 82 * pulse, 0f, Gfx.argb(rarity.color, 0.9f * hp));
 		float bob = (float) Math.sin((t - tWin) * 5f) * 2f * hp;
 		float size = ICON * (1f + 0.4f * Gfx.easeOutBack(hp)) * pulse;
-		PrizeIcon.of(pockets[winIdx]).draw(g, x, y - 4f * hp + bob, size, size * Gfx.lerp(SQ * 1.3f, 1f, hp), 0f, Gfx.argb(0xFFFFFFFF, 1f));
+		PrizeIcon.of(pockets[winIdx]).draw(g, x, y - 4f * hp + bob, size, size, 0f, Gfx.argb(0xFFFFFFFF, 1f));
 		drawSparkles(g, x, y, 28f, 6, t - tWin);
 	}
 
@@ -538,44 +543,47 @@ public final class RouletteAnimation extends CasinoAnimation {
 				Gfx.texCentered(g, T_BALL, px(a, b[1]), py(a, b[1]), BALL, BALL, 0f, Gfx.argb(0xFFFFFFFF, 0.35f * trail / k));
 			}
 		}
-		if (b[2] > 0.3f) {
-			Gfx.texCentered(g, T_DISC, x, y + 1.5f, BALL * 0.9f, BALL * 0.45f, 0f, Gfx.argb(0xFF000000, 0.35f));
-		}
-		Gfx.texCentered(g, T_BALL, x, y - b[2], BALL, BALL, 0f, Gfx.argb(0xFFFFFFFF, 1f));
+		// von oben: eine springende Kugel wird größer, ihr Schatten wandert weg
+		float h = b[2];
+		Gfx.texCentered(g, T_DISC, x + 1f + h * 0.35f, y + 1.5f + h * 0.5f, BALL * 0.95f, BALL * 0.95f, 0f, Gfx.argb(0xFF000000, 0.3f));
+		float size = BALL * (1f + h * 0.035f);
+		Gfx.texCentered(g, T_BALL, x, y - h * 0.3f, size, size, 0f, Gfx.argb(0xFFFFFFFF, 1f));
 	}
 
 	// ---- Hand -------------------------------------------------------------------------------------------------------
 
 	/** Wo die Hand einen Stapel absetzt (Greifpunkt über dem Stapel). */
 	private float[] betSpot(Bet b) {
-		float ly = fieldCY(b.field);
-		return new float[]{boardX(STACK_LX, ly) + 2f, boardY(ly) - 12f};
+		return new float[]{fieldX(b.field) + 2f, stackY() - 10f};
 	}
 
 	/** Greifpunkt der Hand und ihr Winkel (Ärmel zeigt nach rechts unten). */
 	private float[] handPos(float time) {
 		float turretX = WCX + 2f, turretY = WCY - 2f;
 		float launchX = px(0f, R_TRACK) - 4f, launchY = WCY - 2f;
-		Bet first = bets.getFirst();
-		if (time < first.at) {
-			float[] s = betSpot(first);
-			float in = Gfx.easeOutCubic(Gfx.progress(time, tHandIn, first.at - 0.04f - tHandIn));
-			return new float[]{Gfx.lerp(VW + 170f, s[0], in), Gfx.lerp(s[1] + 80f, s[1], in) + dip(time), 0.35f};
+		// Wegpunkte: Chips holen, dann die Felder der Reihe nach
+		List<float[]> keys = new ArrayList<>();
+		keys.add(new float[]{tHandIn, VW + 170f, RACK_Y + 60f});
+		keys.add(new float[]{tRack, rackX() + 2f, RACK_Y - 10f});
+		for (Bet b : bets) {
+			float[] s = betSpot(b);
+			keys.add(new float[]{b.at, s[0], s[1]});
 		}
-		for (int i = 0; i < bets.size() - 1; i++) {
-			Bet b = bets.get(i), n = bets.get(i + 1);
-			if (time < n.at) {
-				float[] s0 = betSpot(b), s1 = betSpot(n);
-				float m = Gfx.easeInOutCubic(Gfx.progress(time, b.at + 0.06f, n.at - 0.04f - b.at - 0.06f));
-				return new float[]{Gfx.lerp(s0[0], s1[0], m), Gfx.lerp(s0[1], s1[1], m) - (float) Math.sin(m * Math.PI) * 6f + dip(time), 0.35f};
-			}
-		}
-		Bet last = bets.getLast();
+		keys.add(new float[]{tSpin, turretX, turretY});
 		if (time < tSpin) {
-			float[] s = betSpot(last);
-			float m = Gfx.easeInOutCubic(Gfx.progress(time, last.at + 0.06f, tSpin - 0.06f - last.at - 0.06f));
-			return new float[]{Gfx.lerp(s[0], turretX, m), Gfx.lerp(s[1], turretY, m) - (float) Math.sin(m * Math.PI) * 18f + dip(time),
-					Gfx.lerp(0.35f, 0.5f, m)};
+			for (int i = 0; i + 1 < keys.size(); i++) {
+				float[] k0 = keys.get(i), k1 = keys.get(i + 1);
+				if (time < k1[0]) {
+					boolean first = i == 0;
+					float from = first ? k0[0] : k0[0] + 0.06f;
+					float m = Gfx.easeInOutCubic(Gfx.progress(time, from, k1[0] - 0.04f - from));
+					if (first) m = Gfx.easeOutCubic(Gfx.progress(time, from, k1[0] - 0.04f - from));
+					boolean last = i + 2 == keys.size();
+					float lift = first ? 0f : (float) Math.sin(m * Math.PI) * (last ? 18f : 6f);
+					float angle = last ? Gfx.lerp(0.35f, 0.5f, m) : 0.35f;
+					return new float[]{Gfx.lerp(k0[1], k1[1], m), Gfx.lerp(k0[2], k1[2], m) - lift + dip(time), angle};
+				}
+			}
 		}
 		if (time < tSpin + 0.2f) {
 			float twist = Math.min(0.7f, wheelAngle(time) - wheelAngle(tSpin));
@@ -590,11 +598,14 @@ public final class RouletteAnimation extends CasinoAnimation {
 		return new float[]{Gfx.lerp(launchX, VW + 160f, out), Gfx.lerp(launchY, 300f, out), 0.25f - flick + out * 0.3f};
 	}
 
-	/** Kurzes Absenken der Hand beim Absetzen eines Stapels. */
+	/** Kurzes Absenken der Hand beim Greifen und Absetzen. */
 	private float dip(float time) {
 		float d = 0f;
-		for (Bet b : bets) {
-			float p = (time - (b.at - 0.06f)) / 0.14f;
+		List<Float> at = new ArrayList<>();
+		at.add(tRack);
+		for (Bet b : bets) at.add(b.at);
+		for (float a : at) {
+			float p = (time - (a - 0.06f)) / 0.14f;
 			if (p > 0f && p < 1f) d += 6f * (float) Math.sin(p * Math.PI);
 		}
 		return d;
@@ -604,10 +615,12 @@ public final class RouletteAnimation extends CasinoAnimation {
 		if (t < tHandIn || t > tLaunch + 0.45f) return;
 		float[] h = handPos(t);
 		// Stapel, den die Hand gerade trägt
-		for (Bet b : bets) {
-			if (t < b.at) {
-				drawStack(g, h[0] - 1f, h[1] + 12f, b.color, b.chips, 1f);
-				break;
+		if (t >= tRack) {
+			for (Bet b : bets) {
+				if (t < b.at) {
+					drawStack(g, h[0] - 2f, h[1] + 10f, b.color, b.chips, 1f);
+					break;
+				}
 			}
 		}
 		drawHand(g, h[0], h[1], h[2], 1f, false);
