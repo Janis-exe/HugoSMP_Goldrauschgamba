@@ -84,17 +84,17 @@ Die meisten RATs stecken in **gefälschten Kopien** bekannter Mods. Lade die Mod
 
 1. **Prüfsumme vergleichen:** Im [Actions](../../actions/workflows/build.yml)-Durchlauf steht in der Zusammenfassung
    die SHA-256 der echten .jar (auch in `SHA256SUMS.txt` im Download). Deine Datei prüfen:
-   * Windows (PowerShell): `Get-FileHash goldrausch-schiessbude-1.6.0.jar`
-   * Linux/macOS: `sha256sum goldrausch-schiessbude-1.6.0.jar`
+   * Windows (PowerShell): `Get-FileHash goldrausch-schiessbude-1.6.1.jar`
+   * Linux/macOS: `sha256sum goldrausch-schiessbude-1.6.1.jar`
 
    Stimmt die Zahl nicht exakt überein: **nicht benutzen.**
 2. **Herkunftsnachweis (mit GitHub CLI):**
-   `gh attestation verify goldrausch-schiessbude-1.6.0.jar --repo Janis-exe/hugosmp_goldrauschgamba`
+   `gh attestation verify goldrausch-schiessbude-1.6.1.jar --repo Janis-exe/hugosmp_goldrauschgamba`
    bestätigt, dass die Datei von GitHub aus genau diesem Repository gebaut wurde.
-3. **Inhalt prüfen (mit JDK 25):** `java tools/SicherheitsCheck.java goldrausch-schiessbude-1.6.0.jar`
+3. **Inhalt prüfen (mit JDK 25):** `java tools/SicherheitsCheck.java goldrausch-schiessbude-1.6.1.jar`
 4. **Selbst bauen:** Der Build ist reproduzierbar. `./gradlew build` ergibt aus diesem Code Byte für Byte dieselbe
-   .jar mit derselben SHA-256 wie bei GitHub. Version 1.6.0:
-   `d9169d4e4bcde73abf020b850e3e8d7c9f3acda0ff6b3fcaba60e96578497178`
+   .jar mit derselben SHA-256 wie bei GitHub. Version 1.6.1:
+   `c0467e4e74cc89d8c80acda7f2f30ca150fd02297c743e62fc03d31625fec4a9`
 
 Hinweis: Das schützt vor einem RAT **über diese Mod**. Andere Mods, Programme oder Downloads prüft es nicht.
 
@@ -102,7 +102,7 @@ Hinweis: Das schützt vor einem RAT **über diese Mod**. Andere Mods, Programme 
 
 1. [Fabric Loader](https://fabricmc.net/use/) **0.19.3+** für Minecraft **26.3** installieren.
 2. **Fabric API** für 26.3 (**0.161.0** oder neuer) in den `mods`-Ordner legen.
-3. `goldrausch-schiessbude-1.6.0.jar` in den `mods`-Ordner legen (eine ältere Version vorher löschen).
+3. `goldrausch-schiessbude-1.6.1.jar` in den `mods`-Ordner legen (eine ältere Version vorher löschen).
 4. Optional: **Mod Menu** (21.0.1+). Dann gibt es dort den Knopf „Konfigurieren“.
 
 ## Bedienung
@@ -177,10 +177,11 @@ Dann gilt:
 | Was die Anzeige zeigt | Animation |
 |---|---|
 | Betrag: `+66,000 $`, `1,250,000 $`, `+1.2M $`, `+1,2 Mio $`, `$66,000` | Geld-Gewinn nach Betrag: **bis 75.000 $ Goldnugget, darüber Goldbarren** (`testMoneyMax`), mit Betrag |
-| Name eines Gewinns oder einer Variante (Text oder Item-Name), z. B. „Kuh-Spawner“, „Star Spitzhacke“, ein Spawner-Item | dieser Gewinn mit passendem Bild |
+| Name eines Gewinns oder einer Variante (Text oder Item-Name), z. B. „Spider Spawner“, „Star Spitzhacke“, ein Spawner-Item | dieser Gewinn mit passendem Bild; ohne eigenes Bild (z. B. „Skeleton Spawner“) mit dem Text vom Server |
 | nur ein Gold-Item ohne lesbaren Betrag (Goldnugget / Goldbarren) | Goldnugget bzw. Goldbarren ohne Betrag |
 
-Jeder Drop zählt nur einmal, auch wenn Item und Schild beide passen. Welche Animation läuft, stellst du im Menü unter
+Beispiel Spawner-Drop (aus einem echten Mitschnitt): ein Papier-Item mit eigenem Modell am Block und knapp darüber
+das Schild `Spider Spawner`. Jeder Drop zählt nur einmal, auch wenn Item und Schild beide passen. Welche Animation läuft, stellst du im Menü unter
 **Server-Fund** ein. Abschalten: `triggerMoneyDrops` auf `false`.
 
 **Sounds des Servers:** Beim Drop spielt der Server eigene Sounds ab, sobald das Item erscheint (noch vor dem Schild),
@@ -260,7 +261,7 @@ Benötigt **JDK 25**.
 ./gradlew build
 ```
 
-Die fertige Mod liegt danach unter `build/libs/goldrausch-schiessbude-1.6.0.jar`. `build` führt dabei automatisch
+Die fertige Mod liegt danach unter `build/libs/goldrausch-schiessbude-1.6.1.jar`. `build` führt dabei automatisch
 den Sicherheits-Check aus (einzeln: `./gradlew sicherheitsCheck`).
 
 * Minecraft mit der Mod starten: `./gradlew runClient`

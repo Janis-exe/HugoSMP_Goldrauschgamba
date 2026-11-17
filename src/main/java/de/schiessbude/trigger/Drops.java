@@ -66,8 +66,9 @@ public final class Drops {
 	private static final double NEAR_BLOCK = 3.5;
 	/** Item-Display ohne passenden Text: so lange auf den Text warten, dann über das Item auslösen. */
 	private static final long ITEM_WAIT_NANOS = 700_000_000L;
-	/** Zwei Anzeigen so nah beieinander und so kurz nacheinander gehören zum selben Drop. */
-	private static final double SAME_DROP = 1.8;
+	/** Zwei Anzeigen so nah beieinander und so kurz nacheinander gehören zum selben Drop (beim Spawner-Drop steht das
+	 * Schild knapp 2 Blöcke neben dem Item). */
+	private static final double SAME_DROP = 3.0;
 	private static final long SAME_DROP_NANOS = 2_500_000_000L;
 
 	private record Spot(double x, double y, double z, long nanos) {
@@ -177,6 +178,8 @@ public final class Drops {
 				if (v != null || p.matches(plain)) {
 					prize = p;
 					variant = v;
+					// ohne eigenes Bild (z. B. "Skeleton Spawner"): den Text des Servers anzeigen
+					if (v == null) detail = plain;
 					break;
 				}
 			}
@@ -196,7 +199,10 @@ public final class Drops {
 		}
 		// Gehört ein Item-Display dazu? Dann dessen Variante übernehmen (z. B. Spawner-Typ) und es nicht doppelt zählen
 		PendingItem item = takePending(entity);
-		if (item != null && variant == null && item.prize() == prize) variant = item.variant();
+		if (item != null && variant == null && item.prize() == prize && item.variant() != null) {
+			variant = item.variant();
+			detail = null;
+		}
 		if (firedNear(entity)) return;
 		fireDrop(prize, variant, detail, entity, "Text '" + plain + "'");
 	}
