@@ -46,14 +46,23 @@ public final class PrizeIcon {
 	}
 
 	public void draw(GuiGraphicsExtractor g, float cx, float cy, float size, float angle, float alpha) {
+		draw(g, cx, cy, size, size, angle, Gfx.argb(0xFFFFFFFF, alpha));
+	}
+
+	/**
+	 * Zeichnet das Bild in w x h (z. B. auf einer Walze gestaucht). {@code color} färbt Texturen ein
+	 * (zum Abdunkeln); Items können nicht eingefärbt werden und erscheinen nur bei genug Deckkraft.
+	 */
+	public void draw(GuiGraphicsExtractor g, float cx, float cy, float w, float h, float angle, int color) {
 		if (texture != null) {
-			Gfx.texCentered(g, texture, cx, cy, size, size, angle, Gfx.argb(0xFFFFFFFF, alpha));
-		} else if (alpha > 0.5f) {
+			Gfx.texCentered(g, texture, cx, cy, w, h, angle, color);
+		} else if ((color >>> 24) > 127 && w > 0.5f && h > 0.5f) {
 			var p = g.pose();
 			p.pushMatrix();
 			p.translate(cx, cy);
 			if (angle != 0f) p.rotate(angle);
-			Gfx.item(g, stack, 0, 0, size * 0.9f);
+			p.scale(1f, h / w);
+			Gfx.item(g, stack, 0, 0, w * 0.9f);
 			p.popMatrix();
 		}
 	}

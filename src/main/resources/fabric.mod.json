@@ -3,7 +3,7 @@
 	"id": "schiessbude",
 	"version": "${version}",
 	"name": "Goldrausch Schießbude",
-	"description": "Spielt bei jedem Fund eine Schießbuden-Animation ab: Eine Pistole schießt die Ziele um, bis nur dein Gewinn übrig bleibt.",
+	"description": "Spielt bei jedem Fund eine Gewinn-Animation ab: Schießstand, Slotmaschine oder Roulette.",
 	"authors": ["Claude"],
 	"license": "GPL-3.0",
 	"icon": "assets/schiessbude/icon.png",

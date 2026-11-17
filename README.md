@@ -6,10 +6,20 @@ Jede Änderung am Code baut automatisch eine neue Version.
 
 ![Vorschau](docs/vorschau.png)
 
-Bei jedem Fund spielt der Client eine Schießbuden-Animation im Brawl-Stars-Stil ab:
-Zielscheiben mit verschiedenen Gewinnen klappen auf bunten Podesten hoch. Eine goldene Pistole in der Mitte
-schießt eine Scheibe nach der anderen um. Vor dem letzten Schuss zielt sie spannungsvoll erst auf deinen Gewinn.
-Am Ende bleibt nur dein Gewinn stehen, die Kamera zoomt heran und der Gewinn wird groß enthüllt
+Bei jedem Fund spielt der Client eine Gewinn-Animation im Brawl-Stars-Stil ab. Es gibt drei Buden im gleichen
+Goldrausch-Look, alle etwa gleich lang (rund 6 Sekunden Spannung, dann die Enthüllung):
+
+* **Schießstand:** Zielscheiben mit verschiedenen Gewinnen klappen auf bunten Podesten hoch. Eine goldene Pistole in
+  der Mitte schießt eine Scheibe nach der anderen um. Vor dem letzten Schuss zielt sie spannungsvoll erst auf deinen
+  Gewinn, bis nur noch er steht.
+* **Slotmaschine:** Eine Hand zieht den Hebel rechts an der Maschine runter, die drei Walzen drehen sich und bleiben
+  nacheinander mit deinem Gewinn auf der Gewinnlinie stehen. Die letzte Walze bleibt erst eine Reihe zu früh stehen
+  und rutscht dann doch noch auf den Gewinn. Danach regnet es Münzen.
+* **Roulette:** Ein Croupier-Schieber schiebt die Chips aufs Einsatzfeld, eine Hand dreht das Rad an und wirft die
+  Kugel ein. Die Fächer zeigen die Gewinne in ihrer Seltenheitsfarbe. Die Kugel hüpft erst in ein wertvolleres Fach
+  und springt dann in das Fach mit deinem Gewinn.
+
+Am Ende zoomt die Kamera heran und der Gewinn wird groß enthüllt
 (Seltenheit, Name und Betrag, bei Episch/Legendär mit Konfetti).
 
 * **Chat und obere Bildschirmmitte sind während der Animation komplett verdeckt.** Chat, Titel, Actionbar
@@ -22,7 +32,7 @@ Am Ende bleibt nur dein Gewinn stehen, die Kamera zoomt heran und der Gewinn wir
 
 1. [Fabric Loader](https://fabricmc.net/use/) **0.20.1+** für Minecraft **26.3** installieren.
 2. **Fabric API** für 26.3 in den `mods`-Ordner legen.
-3. `goldrausch-schiessbude-1.0.0.jar` in den `mods`-Ordner legen.
+3. `goldrausch-schiessbude-1.1.0.jar` in den `mods`-Ordner legen (eine ältere Version vorher löschen).
 4. Optional: **Mod Menu** (21.0.1+). Dann gibt es dort den Knopf „Konfigurieren“.
 
 ## Bedienung
@@ -31,20 +41,37 @@ Am Ende bleibt nur dein Gewinn stehen, die Kamera zoomt heran und der Gewinn wir
 |---|---|
 | Einstellungsmenü | Taste **K**, Befehl `/schiessbude` oder Mod Menu |
 | Animation überspringen | Taste **J** (1× = direkt zum Gewinn, 2× = beenden) |
-| Testen | `/schiessbude test` oder `/schiessbude test goldticket` |
+| Testen (zufällige Animation) | `/schiessbude test` oder `/schiessbude test goldticket` |
+| Bestimmte Animation testen | `/schiessbude test schiessstand`, `/schiessbude test slot`, `/schiessbude test roulette` (optional mit Gewinn, z. B. `/schiessbude test slot spawner`) |
 | Warteschlange leeren | `/schiessbude leeren` |
 
 Beide Tasten lassen sich unter *Optionen → Steuerung → Goldrausch Schießbude* ändern.
 
 ### Einstellungsmenü
 * **Animation** an/aus
-* **Test: Erz abbauen**: Jedes abgebaute Erz startet eine Animation mit zufälligem Gewinn.
-  **Ist zum Testen eingeschaltet. Für das echte Spielen ausschalten!**
+* **Test: Erz abbauen**: Jedes abgebaute Erz startet eine Animation mit zufälligem Gewinn. Welche Animation,
+  hängt vom Erz ab (siehe unten). **Ist zum Testen eingeschaltet. Für das echte Spielen ausschalten!**
+* **Server-Fund**: welche Animation bei einem echten Fund vom Server läuft (Schießstand, Slotmaschine, Roulette
+  oder Zufall)
 * **Ab Seltenheit**: z. B. „Selten“, dann laufen Goldnuggets und Goldbarren ohne Animation durch
 * **Tempo** (0,5x–3x), **Lautstärke**, **Gewinn-Anzeige** (wie lange der Gewinn zu sehen ist)
 * **Chat verdecken**: Chat, Titel, Actionbar und Bossleiste während der Animation ausblenden
 * **Pakete loggen**: siehe unten
 * **Chat / Actionbar / Titel / Untertitel**: welche Server-Pakete einen Fund auslösen dürfen
+* **▶ Schießstand / ▶ Slotmaschine / ▶ Roulette**: Animation sofort testen
+
+### Erz-Test: welches Erz welche Animation startet
+
+| Erz | Animation |
+|---|---|
+| Kupfer | Schießstand |
+| Kohle | Slotmaschine |
+| Gold, Eisen, Redstone, Diamant, Lapis | Roulette |
+| alle anderen (Smaragd, Quarz, Antiker Schrott …) | Zufall |
+
+Deepslate- und Nether-Varianten zählen mit (z. B. `deepslate_coal_ore`, `nether_gold_ore`). Die Zuordnung steht in
+`config/schiessbude.json` unter `oreAnimations` und `otherOresAnimation`. Der Schlüssel ist ein Teil der Block-ID,
+der Wert ist `SHOOTING_RANGE`, `SLOT_MACHINE`, `ROULETTE` oder `RANDOM`.
 
 ## Wie wird ein Fund erkannt?
 
@@ -109,10 +136,11 @@ Benötigt **JDK 25**.
 ./gradlew build
 ```
 
-Die fertige Mod liegt danach unter `build/libs/goldrausch-schiessbude-1.0.0.jar`.
+Die fertige Mod liegt danach unter `build/libs/goldrausch-schiessbude-1.1.0.jar`.
 
 * Minecraft mit der Mod starten: `./gradlew runClient`
-* Animation direkt im Hauptmenü ansehen: `./gradlew runClient -Ppreview=zufall` (oder `-Ppreview=goldticket`)
+* Animation direkt im Hauptmenü ansehen: `./gradlew runClient -Ppreview=zufall` (oder `-Ppreview=goldticket`),
+  bestimmte Animation mit `-Panim=schiessstand`, `-Panim=slot` oder `-Panim=roulette`
 * Alle Grafiken neu erzeugen (Python + Pillow): `python3 tools/generate_textures.py`
 
 ## Projektaufbau
@@ -120,7 +148,10 @@ Die fertige Mod liegt danach unter `build/libs/goldrausch-schiessbude-1.0.0.jar`
 ```
 src/main/java/de/schiessbude/
 ├─ SchiessbudeClient.java          Start: Tasten, HUD, Paket-Events, Befehle, Erz-Test
-├─ anim/ShootingRangeAnimation.java  Die Animation (Ablaufplan, Zeichnen, Sounds)
+├─ anim/CasinoAnimation.java       Gemeinsame Basis: Zoom, Enthüllung, Sounds, Überspringen
+├─ anim/ShootingRangeAnimation.java  Schießstand (Kupfer)
+├─ anim/SlotMachineAnimation.java  Slotmaschine (Kohle)
+├─ anim/RouletteAnimation.java     Roulette (Gold, Eisen, Redstone, Diamant, Lapis)
 ├─ anim/AnimationManager.java      Warteschlange, Pausieren, Überspringen
 ├─ anim/Gfx.java, PrizeIcon.java   Zeichen-Helfer, Gewinn-Bilder
 ├─ trigger/PacketTriggers.java     Erkennung in Chat/Actionbar/Titel-Paketen + Paket-Log

@@ -131,6 +131,19 @@ public final class Gfx {
 		p.popMatrix();
 	}
 
+	/** Text ohne Kontur und Schatten, zentriert auf (cx, cy) - z. B. auf den Tisch gedruckt. */
+	public static void centeredText(GuiGraphicsExtractor g, String text, float cx, float cy, float scale, int color, float a) {
+		int c = argb(color, a);
+		if ((c >>> 24) < 5) return;
+		Font font = Minecraft.getInstance().font;
+		Matrix3x2fStack p = g.pose();
+		p.pushMatrix();
+		p.translate(cx, cy);
+		p.scale(scale, scale);
+		g.text(font, text, -font.width(text) / 2, -4, c, false);
+		p.popMatrix();
+	}
+
 	public static int textWidth(String text) {
 		return Minecraft.getInstance().font.width(text);
 	}

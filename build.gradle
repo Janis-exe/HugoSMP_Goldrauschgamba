@@ -20,8 +20,12 @@ loom {
 	runs {
 		client {
 			// Entwickler-Vorschau im Hauptmenü:  ./gradlew runClient -Ppreview=zufall   (oder z. B. -Ppreview=goldticket)
+			// Animation wählen mit -Panim=schiessstand | slot | roulette | zufall
 			if (project.hasProperty("preview")) {
 				property("schiessbude.preview", project.property("preview").toString())
+			}
+			if (project.hasProperty("anim")) {
+				property("schiessbude.previewAnim", project.property("anim").toString())
 			}
 		}
 	}

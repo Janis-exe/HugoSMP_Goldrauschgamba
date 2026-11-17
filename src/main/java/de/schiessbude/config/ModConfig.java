@@ -13,7 +13,10 @@ import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Locale;
+import java.util.Map;
 import java.util.Random;
 import java.util.regex.Pattern;
 
@@ -31,6 +34,15 @@ public class ModConfig {
 	public boolean enabled = true;
 	/** Test-Modus: jedes abgebaute Erz löst eine Animation mit zufälligem Gewinn aus. */
 	public boolean testModeOres = true;
+	/** Welche Animation bei einem echten Fund vom Server läuft. */
+	public AnimationType serverAnimation = AnimationType.SHOOTING_RANGE;
+	/**
+	 * Erz-Test: Teil der Block-ID -> Animation. Der erste passende Eintrag gewinnt
+	 * ("copper" passt auf copper_ore und deepslate_copper_ore).
+	 */
+	public Map<String, AnimationType> oreAnimations = defaultOreAnimations();
+	/** Erz-Test: Animation für alle Erze, die oben nicht aufgeführt sind (z. B. Smaragd, Quarz). */
+	public AnimationType otherOresAnimation = AnimationType.RANDOM;
 	/** Funde unterhalb dieser Seltenheit werden ohne Animation übersprungen. */
 	public Rarity minRarity = Rarity.COMMON;
 	/** Abspielgeschwindigkeit (1.0 = normal). */
@@ -66,6 +78,18 @@ public class ModConfig {
 	private transient Pattern requiredCompiled;
 	private transient Pattern ignoreCompiled;
 	private transient boolean patternsCompiled;
+
+	public static Map<String, AnimationType> defaultOreAnimations() {
+		Map<String, AnimationType> map = new LinkedHashMap<>();
+		map.put("copper", AnimationType.SHOOTING_RANGE);
+		map.put("coal", AnimationType.SLOT_MACHINE);
+		map.put("gold", AnimationType.ROULETTE);
+		map.put("iron", AnimationType.ROULETTE);
+		map.put("redstone", AnimationType.ROULETTE);
+		map.put("diamond", AnimationType.ROULETTE);
+		map.put("lapis", AnimationType.ROULETTE);
+		return map;
+	}
 
 	public static List<PrizeDefinition> defaultPrizes() {
 		String money = "([0-9][0-9.,]*\\s?\\$)";
@@ -135,6 +159,10 @@ public class ModConfig {
 
 	private void sanitize() {
 		if (minRarity == null) minRarity = Rarity.COMMON;
+		if (serverAnimation == null) serverAnimation = AnimationType.SHOOTING_RANGE;
+		if (otherOresAnimation == null) otherOresAnimation = AnimationType.RANDOM;
+		if (oreAnimations == null) oreAnimations = defaultOreAnimations();
+		oreAnimations.entrySet().removeIf(e -> e.getKey() == null || e.getKey().isBlank() || e.getValue() == null);
 		speed = clamp(speed <= 0 ? 1f : speed, 0.25f, 4f);
 		volume = clamp(volume, 0f, 1f);
 		revealSeconds = clamp(revealSeconds <= 0 ? 3f : revealSeconds, 0.5f, 15f);
@@ -165,6 +193,15 @@ public class ModConfig {
 		}
 		if (requiredCompiled != null && !requiredCompiled.matcher(plainText).find()) return false;
 		return ignoreCompiled == null || !ignoreCompiled.matcher(plainText).find();
+	}
+
+	/** Erz-Test: Animation für einen Block (z. B. "deepslate_coal_ore" -> Slotmaschine). */
+	public AnimationType animationForOre(String blockPath) {
+		String path = blockPath.toLowerCase(Locale.ROOT);
+		for (Map.Entry<String, AnimationType> e : oreAnimations.entrySet()) {
+			if (path.contains(e.getKey().toLowerCase(Locale.ROOT))) return e.getValue();
+		}
+		return otherOresAnimation;
 	}
 
 	public PrizeDefinition findPrize(String id) {

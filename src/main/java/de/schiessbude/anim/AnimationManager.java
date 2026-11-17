@@ -1,5 +1,6 @@
 package de.schiessbude.anim;
 
+import de.schiessbude.config.AnimationType;
 import de.schiessbude.config.ModConfig;
 import de.schiessbude.config.Reward;
 import net.minecraft.client.Minecraft;
@@ -11,6 +12,7 @@ import org.slf4j.LoggerFactory;
 
 import java.util.ArrayDeque;
 import java.util.Deque;
+import java.util.Random;
 
 /**
  * Warteschlange der Funde. Es läuft immer nur eine Animation; alle weiteren werden der Reihe nach abgespielt.
@@ -18,7 +20,8 @@ import java.util.Deque;
 public final class AnimationManager {
 	private static final Logger LOG = LoggerFactory.getLogger("schiessbude");
 	private static final Deque<Reward> QUEUE = new ArrayDeque<>();
-	private static ShootingRangeAnimation current;
+	private static final Random RANDOM = new Random();
+	private static CasinoAnimation current;
 	private static long lastFrameNanos = -1L;
 	private static long seedCounter = System.nanoTime();
 	/** Name der Überspringen-Taste für den Hinweis (wird vom Client gesetzt). */
@@ -35,7 +38,8 @@ public final class AnimationManager {
 			LOG.debug("Fund {} unter Mindest-Seltenheit - keine Animation", reward.prize().id);
 			return;
 		}
-		LOG.info("Schießbude: Fund '{}' ({}) aus {} in die Warteschlange", reward.prize().name, reward.detail(), reward.source());
+		LOG.info("Schießbude: Fund '{}' ({}) aus {} in die Warteschlange ({})", reward.prize().name, reward.detail(), reward.source(),
+				reward.animation() != null ? reward.animation().displayName : "Server-Fund");
 		QUEUE.addLast(reward);
 		if (current == null) startNext(false);
 	}
@@ -46,7 +50,9 @@ public final class AnimationManager {
 			current = null;
 			return;
 		}
-		current = new ShootingRangeAnimation(next, seedCounter++, chained, ModConfig.get().revealSeconds);
+		ModConfig cfg = ModConfig.get();
+		AnimationType type = (next.animation() != null ? next.animation() : cfg.serverAnimation).resolve(RANDOM);
+		current = CasinoAnimation.create(type, next, seedCounter++, chained, cfg.revealSeconds);
 		lastFrameNanos = -1L;
 	}
 

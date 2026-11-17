@@ -2,7 +2,9 @@ package de.schiessbude;
 
 import com.mojang.blaze3d.platform.InputConstants;
 import com.mojang.brigadier.arguments.StringArgumentType;
+import com.mojang.brigadier.builder.LiteralArgumentBuilder;
 import de.schiessbude.anim.AnimationManager;
+import de.schiessbude.config.AnimationType;
 import de.schiessbude.config.ModConfig;
 import de.schiessbude.config.PrizeDefinition;
 import de.schiessbude.config.Reward;
@@ -13,6 +15,7 @@ import de.schiessbude.trigger.PacketTriggers;
 import net.fabricmc.api.ClientModInitializer;
 import net.fabricmc.fabric.api.client.command.v2.ClientCommandRegistrationCallback;
 import net.fabricmc.fabric.api.client.command.v2.ClientCommands;
+import net.fabricmc.fabric.api.client.command.v2.FabricClientCommandSource;
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
 import net.fabricmc.fabric.api.client.keymapping.v1.KeyMappingHelper;
 import net.fabricmc.fabric.api.client.message.v1.ClientReceiveMessageEvents;
@@ -44,6 +47,7 @@ public class SchiessbudeClient implements ClientModInitializer {
 	private static KeyMapping skipKey;
 	private static boolean openSettingsNextTick;
 	private static String previewOnTitle = System.getProperty("schiessbude.preview");
+	private static final AnimationType PREVIEW_ANIM = AnimationType.parse(System.getProperty("schiessbude.previewAnim", "zufall"));
 
 	@Override
 	public void onInitializeClient() {
@@ -74,48 +78,41 @@ public class SchiessbudeClient implements ClientModInitializer {
 		PayloadTypeRegistry.clientboundPlay().register(RewardPayload.TYPE, RewardPayload.CODEC);
 		ClientPlayNetworking.registerGlobalReceiver(RewardPayload.TYPE, (payload, context) -> PacketTriggers.onPayload(payload.data()));
 
-		// ---- Test-Modus: jedes abgebaute Erz ----
+		// ---- Test-Modus: jedes abgebaute Erz (Kupfer = Schießstand, Kohle = Slotmaschine, Gold/Eisen/... = Roulette) ----
 		ClientPlayerBlockBreakEvents.AFTER.register((level, player, pos, state) -> {
-			if (ModConfig.get().testModeOres && isOre(state)) enqueueTestReward("Test: Erz");
+			ModConfig cfg = ModConfig.get();
+			if (!cfg.testModeOres || !isOre(state)) return;
+			String path = BuiltInRegistries.BLOCK.getKey(state.getBlock()).getPath();
+			enqueueTestReward("Test: " + path, cfg.animationForOre(path));
 		});
 
 		// ---- Tick: Tasten, verzögertes Öffnen ----
 		ClientTickEvents.END_CLIENT_TICK.register(this::onTick);
 		ClientPlayConnectionEvents.DISCONNECT.register((handler, client) -> AnimationManager.clear());
 
-		// ---- Befehle: /schiessbude, /schiessbude test [gewinn], /schiessbude leeren ----
-		ClientCommandRegistrationCallback.EVENT.register((dispatcher, buildContext) -> dispatcher.register(
-				ClientCommands.literal("schiessbude")
-						.executes(ctx -> {
-							openSettingsNextTick = true;
-							return 1;
-						})
-						.then(ClientCommands.literal("test")
-								.executes(ctx -> {
-									enqueueTestReward("Befehl");
-									return 1;
-								})
-								.then(ClientCommands.argument("gewinn", StringArgumentType.word())
-										.suggests((ctx, builder) -> {
-											ModConfig.get().prizes.forEach(p -> builder.suggest(p.id));
-											return builder.buildFuture();
-										})
-										.executes(ctx -> {
-											String id = StringArgumentType.getString(ctx, "gewinn");
-											PrizeDefinition prize = ModConfig.get().findPrize(id);
-											if (prize == null) {
-												ctx.getSource().sendError(Component.literal("Unbekannter Gewinn: " + id));
-												return 0;
-											}
-											AnimationManager.enqueue(new Reward(prize, prize.randomTestDetail(RANDOM), "Befehl"));
-											return 1;
-										})))
-						.then(ClientCommands.literal("leeren")
-								.executes(ctx -> {
-									AnimationManager.clear();
-									ctx.getSource().sendFeedback(Component.literal("Warteschlange geleert."));
-									return 1;
-								}))));
+		// ---- Befehle: /schiessbude, /schiessbude test [animation] [gewinn], /schiessbude leeren ----
+		ClientCommandRegistrationCallback.EVENT.register((dispatcher, buildContext) -> {
+			LiteralArgumentBuilder<FabricClientCommandSource> test = ClientCommands.literal("test")
+					.executes(ctx -> testCommand(ctx.getSource(), AnimationType.RANDOM, null))
+					.then(prizeArgument(AnimationType.RANDOM));
+			for (AnimationType type : AnimationType.values()) {
+				test.then(ClientCommands.literal(type.command)
+						.executes(ctx -> testCommand(ctx.getSource(), type, null))
+						.then(prizeArgument(type)));
+			}
+			dispatcher.register(ClientCommands.literal("schiessbude")
+					.executes(ctx -> {
+						openSettingsNextTick = true;
+						return 1;
+					})
+					.then(test)
+					.then(ClientCommands.literal("leeren")
+							.executes(ctx -> {
+								AnimationManager.clear();
+								ctx.getSource().sendFeedback(Component.literal("Warteschlange geleert."));
+								return 1;
+							})));
+		});
 
 		LOG.info("Goldrausch Schießbude geladen ({} Gewinne konfiguriert)", ModConfig.get().prizes.size());
 	}
@@ -135,8 +132,26 @@ public class SchiessbudeClient implements ClientModInitializer {
 		if (previewOnTitle != null && mc.gui.screen() instanceof TitleScreen title) {
 			String prize = previewOnTitle.equals("zufall") ? null : previewOnTitle;
 			previewOnTitle = null;
-			mc.gui.setScreen(new PreviewScreen(title, prize));
+			mc.gui.setScreen(new PreviewScreen(title, prize, PREVIEW_ANIM));
 		}
+	}
+
+	private static com.mojang.brigadier.builder.RequiredArgumentBuilder<FabricClientCommandSource, String> prizeArgument(AnimationType type) {
+		return ClientCommands.argument("gewinn", StringArgumentType.word())
+				.suggests((ctx, builder) -> {
+					ModConfig.get().prizes.forEach(p -> builder.suggest(p.id));
+					return builder.buildFuture();
+				})
+				.executes(ctx -> testCommand(ctx.getSource(), type, StringArgumentType.getString(ctx, "gewinn")));
+	}
+
+	private static int testCommand(FabricClientCommandSource source, AnimationType type, String prizeId) {
+		if (prizeId != null && ModConfig.get().findPrize(prizeId) == null) {
+			source.sendError(Component.literal("Unbekannter Gewinn: " + prizeId));
+			return 0;
+		}
+		AnimationManager.enqueue(createTestReward("Befehl", prizeId, type));
+		return 1;
 	}
 
 	private static boolean isOre(BlockState state) {
@@ -145,14 +160,15 @@ public class SchiessbudeClient implements ClientModInitializer {
 		return path.endsWith("_ore") || path.equals("ancient_debris");
 	}
 
-	public static Reward createTestReward(String source, String prizeId) {
+	/** Test-Fund mit zufälligem (oder vorgegebenem) Gewinn und der gewünschten Animation. */
+	public static Reward createTestReward(String source, String prizeId, AnimationType type) {
 		ModConfig cfg = ModConfig.get();
 		PrizeDefinition prize = prizeId != null ? cfg.findPrize(prizeId) : null;
 		if (prize == null) prize = cfg.randomPrize(RANDOM);
-		return new Reward(prize, prize.randomTestDetail(RANDOM), source);
+		return new Reward(prize, prize.randomTestDetail(RANDOM), source, type == null ? AnimationType.RANDOM : type);
 	}
 
-	public static void enqueueTestReward(String source) {
-		AnimationManager.enqueue(createTestReward(source, null));
+	public static void enqueueTestReward(String source, AnimationType type) {
+		AnimationManager.enqueue(createTestReward(source, null, type));
 	}
 }
