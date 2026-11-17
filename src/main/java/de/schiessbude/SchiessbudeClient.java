@@ -11,6 +11,7 @@ import de.schiessbude.config.Reward;
 import de.schiessbude.gui.PreviewScreen;
 import de.schiessbude.gui.SettingsScreen;
 import de.schiessbude.net.RewardPayload;
+import de.schiessbude.trigger.MoneyDrops;
 import de.schiessbude.trigger.PacketTriggers;
 import net.fabricmc.api.ClientModInitializer;
 import net.fabricmc.fabric.api.client.command.v2.ClientCommandRegistrationCallback;
@@ -80,6 +81,7 @@ public class SchiessbudeClient implements ClientModInitializer {
 
 		// ---- Test-Modus: jedes abgebaute Erz (Kupfer = Schießstand, Kohle = Slotmaschine, Gold/Eisen/... = Roulette) ----
 		ClientPlayerBlockBreakEvents.AFTER.register((level, player, pos, state) -> {
+			MoneyDrops.onOwnBlockBroken(); // Geld-Drops zählen nur direkt nach eigenem Abbau
 			ModConfig cfg = ModConfig.get();
 			if (!cfg.testModeOres || !isOre(state)) return;
 			String path = BuiltInRegistries.BLOCK.getKey(state.getBlock()).getPath();
@@ -88,7 +90,10 @@ public class SchiessbudeClient implements ClientModInitializer {
 
 		// ---- Tick: Tasten, verzögertes Öffnen ----
 		ClientTickEvents.END_CLIENT_TICK.register(this::onTick);
-		ClientPlayConnectionEvents.DISCONNECT.register((handler, client) -> AnimationManager.clear());
+		ClientPlayConnectionEvents.DISCONNECT.register((handler, client) -> {
+			AnimationManager.clear();
+			MoneyDrops.reset();
+		});
 
 		// ---- Befehle: /schiessbude, /schiessbude test [animation] [gewinn], /schiessbude leeren ----
 		ClientCommandRegistrationCallback.EVENT.register((dispatcher, buildContext) -> {

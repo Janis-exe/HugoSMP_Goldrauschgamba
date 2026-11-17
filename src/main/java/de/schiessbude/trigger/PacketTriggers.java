@@ -22,6 +22,7 @@ import java.util.regex.Pattern;
 /**
  * Wertet die Text-Pakete aus, die der Client vom Server empfängt
  * (Systemnachricht im Chat, Actionbar, Titel, Untertitel) und startet bei einem Fund die Animation.
+ * Geld-Drops (schwebende Schilder) erkennt {@link MoneyDrops}.
  * <p>
  * Sicherheit: Alles, was vom Server kommt, wird nur gelesen, in der Länge begrenzt und als Text angezeigt.
  * Nichts davon wird ausgeführt, als Dateipfad benutzt oder irgendwohin gesendet.
@@ -39,7 +40,8 @@ public final class PacketTriggers {
 	private static final Pattern CONTROL = Pattern.compile("[\\p{Cntrl}\\p{Cf}\\u00A7]");
 
 	public enum Source {
-		CHAT("Chat"), ACTIONBAR("Actionbar"), TITLE("Titel"), SUBTITLE("Untertitel"), PAYLOAD("Server-Paket"), TEST("Test");
+		CHAT("Chat"), ACTIONBAR("Actionbar"), TITLE("Titel"), SUBTITLE("Untertitel"), PAYLOAD("Server-Paket"), TEST("Test"),
+		MONEY_DROP("Geld-Drop"), TEXT_DISPLAY("Text-Display");
 		public final String label;
 
 		Source(String label) {
@@ -96,7 +98,7 @@ public final class PacketTriggers {
 		fire(new Reward(prize, detail, Source.PAYLOAD.label), Source.PAYLOAD);
 	}
 
-	private static void fire(Reward reward, Source source) {
+	static void fire(Reward reward, Source source) {
 		long now = System.currentTimeMillis();
 		ModConfig cfg = ModConfig.get();
 		// Gleicher Fund gleichzeitig als Chat UND Titel? Nur einmal abspielen.
@@ -117,7 +119,7 @@ public final class PacketTriggers {
 		return s.isEmpty() ? null : s;
 	}
 
-	private static void log(Source source, String plain) {
+	static void log(Source source, String plain) {
 		String text = CONTROL.matcher(plain.length() > MAX_TEXT ? plain.substring(0, MAX_TEXT) : plain).replaceAll(" ");
 		String line = "[" + LocalTime.now().format(TIME) + "] " + source.label.toUpperCase() + ": " + text;
 		LOG.info("[Paket] {}", line);

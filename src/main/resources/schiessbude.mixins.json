@@ -3,7 +3,8 @@
 	"package": "de.schiessbude.mixin",
 	"compatibilityLevel": "JAVA_25",
 	"client": [
-		"ChatComponentMixin"
+		"ChatComponentMixin",
+		"TextDisplayMixin"
 	],
 	"injectors": {
 		"defaultRequire": 1

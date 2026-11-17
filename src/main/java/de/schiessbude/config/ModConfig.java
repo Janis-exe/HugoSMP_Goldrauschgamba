@@ -74,6 +74,14 @@ public class ModConfig {
 	/** Das eigene Paket "schiessbude:reward" vom Server annehmen (nur Gewinn-ID und kurzer Text). */
 	public boolean allowServerPayload = true;
 
+	// ---- Geld-Drops (schwebendes goldenes Schild "+66,000 $" beim Abbauen) ----
+	/** Geld-Drops erkennen: Text-Display mit Betrag in deiner Nähe. Der Betrag bestimmt den Gewinn (testMoneyMax). */
+	public boolean triggerMoneyDrops = true;
+	/** Nur Schilder, die höchstens so weit von dir entfernt sind (Blöcke). Drops anderer Spieler weiter weg zählen nicht. */
+	public float moneyDropMaxDistance = 8f;
+	/** Nur auslösen, wenn du in den letzten 5 Sekunden selbst einen Block abgebaut hast. */
+	public boolean moneyDropNeedsMining = true;
+
 	// ---- Gewinne -----------------------------------------------------------
 	public List<PrizeDefinition> prizes = defaultPrizes();
 
@@ -169,6 +177,7 @@ public class ModConfig {
 		volume = clamp(volume, 0f, 1f);
 		revealSeconds = clamp(revealSeconds <= 0 ? 3f : revealSeconds, 0.5f, 15f);
 		if (duplicateWindowMs < 0) duplicateWindowMs = 0;
+		moneyDropMaxDistance = clamp(moneyDropMaxDistance <= 0 ? 8f : moneyDropMaxDistance, 1f, 64f);
 		if (prizes == null || prizes.isEmpty()) prizes = defaultPrizes();
 		prizes.removeIf(p -> p == null || p.id == null);
 		for (PrizeDefinition p : prizes) {
@@ -185,6 +194,23 @@ public class ModConfig {
 	}
 
 	// ---- Hilfsfunktionen ----------------------------------------------------
+
+	/**
+	 * Gewinn für einen Geld-Drop: der Geld-Gewinn (testMoneyMax > 0) mit dem kleinsten Höchstbetrag, der noch passt,
+	 * z. B. bis 75.000 $ Goldnugget, darüber Goldbarren. Bei mehr als allen Höchstbeträgen der größte.
+	 */
+	public PrizeDefinition prizeForMoney(long amount) {
+		PrizeDefinition best = null, largest = null;
+		for (PrizeDefinition p : prizes) {
+			if (p.testMoneyMax <= 0) continue;
+			if (largest == null || p.testMoneyMax > largest.testMoneyMax) largest = p;
+			if (amount <= p.testMoneyMax && (best == null || p.testMoneyMax < best.testMoneyMax)) best = p;
+		}
+		if (best != null) return best;
+		if (largest != null) return largest;
+		PrizeDefinition nugget = findPrize("goldnugget");
+		return nugget != null ? nugget : prizes.getFirst();
+	}
 
 	public boolean passesFilters(String plainText) {
 		if (!patternsCompiled) {

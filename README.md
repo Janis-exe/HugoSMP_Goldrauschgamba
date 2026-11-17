@@ -58,7 +58,7 @@ schickt sie ins Internet. **Diese Mod kann das nachweislich nicht.** Das wird be
   `config/schiessbude/pakete.log`. Der Server hat keinen Einfluss auf Pfade oder Dateinamen.
 * **Kein fremder Code:** Kein Nachladen von Code, keine Reflection, keine Programme starten, keine nativen
   Bibliotheken, keine versteckten .jar-Dateien in der Mod.
-* **Server-Daten werden nur angezeigt:** Text vom Server (Chat, Titel, das Paket `schiessbude:reward`) wird gekürzt
+* **Server-Daten werden nur angezeigt:** Text vom Server (Chat, Titel, Geld-Drop-Schilder, das Paket `schiessbude:reward`) wird gekürzt
   (max. 512 Zeichen untersucht, Paket max. 256 Byte), von Steuerzeichen befreit und nur als Text angezeigt.
   Die Warteschlange ist auf 20 Funde begrenzt, das Paket-Log auf 2 × 1 MB.
 
@@ -77,17 +77,17 @@ Die meisten RATs stecken in **gefälschten Kopien** bekannter Mods. Lade die Mod
 
 1. **Prüfsumme vergleichen:** Im [Actions](../../actions/workflows/build.yml)-Durchlauf steht in der Zusammenfassung
    die SHA-256 der echten .jar (auch in `SHA256SUMS.txt` im Download). Deine Datei prüfen:
-   * Windows (PowerShell): `Get-FileHash goldrausch-schiessbude-1.3.0.jar`
-   * Linux/macOS: `sha256sum goldrausch-schiessbude-1.3.0.jar`
+   * Windows (PowerShell): `Get-FileHash goldrausch-schiessbude-1.4.0.jar`
+   * Linux/macOS: `sha256sum goldrausch-schiessbude-1.4.0.jar`
 
    Stimmt die Zahl nicht exakt überein: **nicht benutzen.**
 2. **Herkunftsnachweis (mit GitHub CLI):**
-   `gh attestation verify goldrausch-schiessbude-1.3.0.jar --repo Janis-exe/hugosmp_goldrauschgamba`
+   `gh attestation verify goldrausch-schiessbude-1.4.0.jar --repo Janis-exe/hugosmp_goldrauschgamba`
    bestätigt, dass die Datei von GitHub aus genau diesem Repository gebaut wurde.
-3. **Inhalt prüfen (mit JDK 25):** `java tools/SicherheitsCheck.java goldrausch-schiessbude-1.3.0.jar`
+3. **Inhalt prüfen (mit JDK 25):** `java tools/SicherheitsCheck.java goldrausch-schiessbude-1.4.0.jar`
 4. **Selbst bauen:** Der Build ist reproduzierbar. `./gradlew build` ergibt aus diesem Code Byte für Byte dieselbe
-   .jar mit derselben SHA-256 wie bei GitHub. Version 1.3.0:
-   `41488d292a49aff6289d965637c282099a7c87d519bd6959a9bccbf03b7d6613`
+   .jar mit derselben SHA-256 wie bei GitHub. Version 1.4.0:
+   `cf597ff204b3eb195329598dac8eeb96fcb53e58f99089892ec5e74c890f11b5`
 
 Hinweis: Das schützt vor einem RAT **über diese Mod**. Andere Mods, Programme oder Downloads prüft es nicht.
 
@@ -95,7 +95,7 @@ Hinweis: Das schützt vor einem RAT **über diese Mod**. Andere Mods, Programme 
 
 1. [Fabric Loader](https://fabricmc.net/use/) **0.20.1+** für Minecraft **26.3** installieren.
 2. **Fabric API** für 26.3 in den `mods`-Ordner legen.
-3. `goldrausch-schiessbude-1.3.0.jar` in den `mods`-Ordner legen (eine ältere Version vorher löschen).
+3. `goldrausch-schiessbude-1.4.0.jar` in den `mods`-Ordner legen (eine ältere Version vorher löschen).
 4. Optional: **Mod Menu** (21.0.1+). Dann gibt es dort den Knopf „Konfigurieren“.
 
 ## Bedienung
@@ -138,7 +138,29 @@ der Wert ist `SHOOTING_RANGE`, `SLOT_MACHINE`, `ROULETTE` oder `RANDOM`.
 
 ## Wie wird ein Fund erkannt?
 
-Die Mod liest die Text-Pakete, die der Client vom Server empfängt:
+### Geld-Drops (schwebendes goldenes Schild)
+Beim Abbauen erscheint auf HugiSMP manchmal über dem Block ein goldenes Schild mit einem Betrag, z. B. `+66,000 $`.
+Der Server schickt dazu **keinen** Chat- oder Titel-Text, sondern baut das Schild aus zwei schwebenden Anzeigen
+(ein Goldnugget als `item_display` und darunter der Betrag als `text_display`). Der Text besteht aus vielen
+Sonderzeichen einer eigenen Server-Schrift (der goldene Hintergrund) und dem lesbaren Betrag.
+
+Die Mod liest den Text jedes solchen Schilds, entfernt die Hintergrund-Zeichen und sucht nach `+Betrag $`
+(auch `+1.2M $`, `+1,2 Mio $` oder `+$66,000`). Gefunden wird der Betrag nur, wenn
+
+* das Schild höchstens **8 Blöcke** von dir entfernt ist (`moneyDropMaxDistance`), und
+* du in den letzten **5 Sekunden selbst einen Block abgebaut** hast (`moneyDropNeedsMining`).
+
+So lösen Geld-Drops anderer Spieler nichts aus. Jedes Schild zählt nur einmal. Der Betrag bestimmt den Gewinn:
+der Geld-Gewinn mit dem kleinsten passenden Höchstbetrag (`testMoneyMax`), also **bis 75.000 $ Goldnugget,
+darüber Goldbarren**. Der Betrag erscheint bei der Enthüllung, so wie ihn der Server schreibt. Welche Animation läuft,
+stellst du im Menü unter **Server-Fund** ein. Abschalten: `triggerMoneyDrops` auf `false`.
+
+**Zum Testen:** **Pakete loggen** einschalten. Dann steht jedes Schild in deiner Nähe mit seinem lesbaren Text in
+`pakete.log`, z. B. `TEXT-DISPLAY: +66,000 $  (2.5 Blöcke entfernt)`. So sieht man auch, falls große Beträge oder
+andere Drops anders geschrieben werden. Ignorierte Drops stehen im Minecraft-Log (`latest.log`) mit Grund.
+
+### Chat, Titel und Actionbar
+Die Mod liest außerdem die Text-Pakete, die der Client vom Server empfängt:
 
 * `ClientboundSystemChatPacket` (Chat-Systemnachricht und Actionbar)
 * `ClientboundSetTitleTextPacket` (Titel)
@@ -157,6 +179,7 @@ die Animation. Ein Betrag wie `12.345 $` im Text wird automatisch mit angezeigt.
      wie „Kauf dir Star-Tools!“ und die Funde **anderer Spieler** nicht aus.
    * `ignorePattern`: Nachrichten, die hierauf passen, lösen nie aus.
    * `allowServerPayload`: das eigene Paket `schiessbude:reward` annehmen (`true`/`false`).
+   * `triggerMoneyDrops`, `moneyDropMaxDistance`, `moneyDropNeedsMining`: Geld-Drops (siehe oben).
    * `prizes[].pattern` / `prizes[].detailPattern`: Erkennung des Gewinns bzw. des Betrags/Typs.
 
 Alle Muster sind reguläre Ausdrücke (Java-Regex), `(?i)` = Groß-/Kleinschreibung egal.
@@ -200,7 +223,7 @@ Benötigt **JDK 25**.
 ./gradlew build
 ```
 
-Die fertige Mod liegt danach unter `build/libs/goldrausch-schiessbude-1.3.0.jar`. `build` führt dabei automatisch
+Die fertige Mod liegt danach unter `build/libs/goldrausch-schiessbude-1.4.0.jar`. `build` führt dabei automatisch
 den Sicherheits-Check aus (einzeln: `./gradlew sicherheitsCheck`).
 
 * Minecraft mit der Mod starten: `./gradlew runClient`
@@ -221,11 +244,13 @@ src/main/java/de/schiessbude/
 ├─ anim/AnimationManager.java      Warteschlange, Pausieren, Überspringen
 ├─ anim/Gfx.java, PrizeIcon.java   Zeichen-Helfer, Gewinn-Bilder
 ├─ trigger/PacketTriggers.java     Erkennung in Chat/Actionbar/Titel-Paketen + Paket-Log
+├─ trigger/MoneyDrops.java         Geld-Drops: Betrag aus dem schwebenden Schild lesen
 ├─ net/RewardPayload.java          Optionales eigenes Paket schiessbude:reward
 ├─ config/                         Konfiguration, Gewinne, Seltenheiten
 ├─ gui/SettingsScreen.java         Einstellungsmenü
 ├─ gui/PreviewScreen.java          Vorschau ohne Welt
 ├─ mixin/ChatComponentMixin.java   Versteckt den Chat während der Animation
+├─ mixin/TextDisplayMixin.java     Meldet neuen Text von schwebenden Schildern (Geld-Drops)
 └─ compat/ModMenuIntegration.java  Mod-Menu-Knopf
 ```
 

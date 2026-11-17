@@ -83,8 +83,10 @@ public class SicherheitsCheck {
 			Map.entry("java/lang/invoke/MethodHandles$Lookup", Set.of()),
 			Map.entry("java/lang/runtime/ObjectMethods", Set.of("bootstrap")),
 			Map.entry("java/lang/runtime/SwitchBootstraps", Set.of("typeSwitch", "enumSwitch")),
-			// Minecraft: nur Bildschirm, Schrift, Welt-Abfrage, Pause und Sound - KEIN getUser, getConnection, player ...
-			Map.entry("net/minecraft/client/Minecraft", Set.of("getInstance", "gui", "font", "level", "isPaused", "getSoundManager")),
+			// Minecraft: nur Bildschirm, Schrift, Welt-Abfrage, Pause, Sound und die Kamera (nur für den Abstand zu einem
+			// Geld-Drop-Schild) - KEIN getUser, getConnection, player ...
+			Map.entry("net/minecraft/client/Minecraft", Set.of("getInstance", "gui", "font", "level", "isPaused", "getSoundManager",
+					"getCameraEntity")),
 			// Fabric-Netzwerk: nur EMPFANGEN, niemals senden
 			Map.entry("net/fabricmc/fabric/api/client/networking/v1/ClientPlayNetworking", Set.of("registerGlobalReceiver")),
 			Map.entry("net/fabricmc/fabric/api/networking/v1/PayloadTypeRegistry", Set.of("clientboundPlay", "register")),
@@ -171,7 +173,8 @@ public class SicherheitsCheck {
 	private void checkMixinJson(String json) {
 		if (!json.contains("\"package\": \"de.schiessbude.mixin\"")) problems.add("Mixins liegen nicht im eigenen Paket");
 		String list = json.replaceAll("(?s).*\"client\"\\s*:\\s*\\[(.*?)].*", "$1").replaceAll("\\s", "");
-		if (!list.equals("\"ChatComponentMixin\"")) problems.add("Unerwartete Mixins: " + list);
+		// ChatComponentMixin: Chat während der Animation ausblenden; TextDisplayMixin: Geld-Drop-Schilder lesen
+		if (!list.equals("\"ChatComponentMixin\",\"TextDisplayMixin\"")) problems.add("Unerwartete Mixins: " + list);
 		if (json.contains("\"server\"") || json.contains("\"mixins\"") || json.contains("plugin")) {
 			problems.add("Unerwartete Mixin-Einträge (server/mixins/plugin)");
 		}
